@@ -38,19 +38,40 @@ export default function QuoteBuilder() {
 
   const fileInputRef = useRef(null);
 
+  const compressImage = (file, maxDim = 1600, quality = 0.75) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
   const addPhoto = useCallback((file) => {
     if (photos.length >= 5) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    compressImage(file).then(base64 => {
       setPhotos(prev => [...prev, {
         id: `photo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         file,
         preview: URL.createObjectURL(file),
-        base64: e.target.result,
+        base64,
         description: ''
       }]);
-    };
-    reader.readAsDataURL(file);
+    });
   }, [photos.length]);
 
   const removePhoto = (id) => {
@@ -147,11 +168,9 @@ export default function QuoteBuilder() {
   // Step 2: Handle additional photo upload
   const handleAdditionalFileChange = (title, file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setAdditionalUploads(prev => ({ ...prev, [title]: e.target.result }));
-    };
-    reader.readAsDataURL(file);
+    compressImage(file).then(base64 => {
+      setAdditionalUploads(prev => ({ ...prev, [title]: base64 }));
+    });
   };
 
   // Collect all images (original + additional) for downstream API calls
