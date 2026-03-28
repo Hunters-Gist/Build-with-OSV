@@ -273,7 +273,7 @@ router.post('/generate-quote', async (req, res) => {
 
 router.post('/analyze-scope', async (req, res) => {
     try {
-        const { photos } = req.body;
+        const { photos, scope_field_schema, subcategory_options } = req.body;
 
         if (!photos || !Array.isArray(photos) || photos.length < 3) {
             return res.status(400).json({ error: 'A minimum of 3 site photos is required for scope analysis.' });
@@ -288,22 +288,45 @@ router.post('/analyze-scope', async (req, res) => {
 
         const scopeFormatted = formatScopeForAI(req.body);
 
+        let fieldSchemaBlock = '';
+        if (scope_field_schema && Array.isArray(scope_field_schema)) {
+            fieldSchemaBlock = '\n\n--- SCOPE FIELD SCHEMA (you MUST populate these) ---\n';
+            scope_field_schema.forEach(f => {
+                let line = `• ${f.key} (${f.type}): "${f.label}"`;
+                if (f.required) line += ' [REQUIRED]';
+                if (f.options && f.options.length) line += ` — valid values: ${JSON.stringify(f.options)}`;
+                fieldSchemaBlock += line + '\n';
+            });
+        }
+
+        let subcatBlock = '';
+        if (subcategory_options && Array.isArray(subcategory_options) && subcategory_options.length) {
+            subcatBlock = `\n\n--- AVAILABLE SUBCATEGORIES ---\n${subcategory_options.map(s => `• "${s}"`).join('\n')}\nChoose the single best match from the list above, or null if none fit.\n`;
+        }
+
         const systemPrompt = `You are a master construction estimator for Build With OSV, a Melbourne-based trades business covering 14 trade categories including fencing, decking, pergolas, landscaping, excavation, cladding, carpentry, painting, structural work, renovations, commercial fit-outs, property maintenance, 3D rendering, and project management.
 
 You are receiving 3-5 site photos with user-provided descriptions, plus structured scope details (job type, subcategory, and trade-specific fields). Your job:
 
 1. ANALYZE every photo. For each one, determine whether it is a site photo, architectural blueprint, or hand-drawn sketch. Extract all relevant construction details — measurements, materials, conditions, access issues, hazards, soil type, existing structures, and anything that affects scope or pricing.
 
-2. SYNTHESIZE all visual evidence with the user's structured scope fields to produce an enhanced, professional scope.
+2. SYNTHESIZE all visual evidence with the user's structured scope fields to produce an enhanced, professional scope. You MUST auto-fill the trade-specific scope fields listed in the SCOPE FIELD SCHEMA section below. For "select" fields, you MUST choose from the valid values provided. For "multi-select" fields, return an array of valid values. For "boolean" fields, return true or false. For "number" fields, return a number or null if you cannot determine it. For "text"/"textarea" fields, return a string or null.
 
-3. IDENTIFY GAPS — if the photos are missing critical angles or details needed for accurate quoting, specify exactly what additional photos are needed (maximum 2). Only request additional photos when genuinely necessary; if the provided photos are comprehensive, return an empty array.
+3. For any field you genuinely cannot determine from the photos or context, include its key in the "unfilled_fields" array so the user is prompted to fill it in manually.
+
+4. IDENTIFY GAPS — if the photos are missing critical angles or details needed for accurate quoting, specify exactly what additional photos are needed (maximum 2). Only request additional photos when genuinely necessary; if the provided photos are comprehensive, return an empty array.
 
 Return ONLY valid JSON in this exact format, with NO markdown formatting:
 {
   "enhanced_scope": {
     "job_type": "The most accurate job type label",
+    "subcategory": "Best matching subcategory from the available list, or null",
     "description": "Comprehensive professional scope description synthesised from all visual evidence, trade-specific fields, and user input",
-    "site_notes": "All identified hazards, access constraints, soil conditions, structural observations"
+    "site_notes": "All identified hazards, access constraints, soil conditions, structural observations",
+    "scope_fields": {
+      "field_key": "value for each scope field you can determine from photos and context"
+    },
+    "unfilled_fields": ["field_keys_you_cannot_determine"]
   },
   "photo_analysis": {
     "summary": "2-3 sentence overview of what you observed across all photos",
@@ -332,11 +355,11 @@ Return ONLY valid JSON in this exact format, with NO markdown formatting:
             }
         });
 
-        content.push({ type: "text", text: `\n--- Structured Scope ---\n${scopeFormatted}\n\nAnalyze every photo above in conjunction with these scope fields. Produce the enhanced scope JSON.` });
+        content.push({ type: "text", text: `\n--- Structured Scope ---\n${scopeFormatted}${fieldSchemaBlock}${subcatBlock}\n\nAnalyze every photo above in conjunction with these scope fields and field schema. Auto-fill every scope field you can determine. Produce the enhanced scope JSON.` });
 
         const msg = await anthropic.messages.create({
             model: "openai/gpt-5.4",
-            max_tokens: 2000,
+            max_tokens: 3000,
             temperature: 0.15,
             system: systemPrompt,
             messages: [{ role: "user", content }]

@@ -21,6 +21,7 @@ export default function QuoteBuilder() {
   // After AI analysis in step 1
   const [scopeAnalyzed, setScopeAnalyzed] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [needsAttention, setNeedsAttention] = useState([]);
 
   // Step 2: Additional photos (conditional)
   const [additionalImages, setAdditionalImages] = useState([]);
@@ -132,10 +133,19 @@ export default function QuoteBuilder() {
   const handleAnalyzeScope = async () => {
     setLoading(true);
     setError(null);
+    setNeedsAttention([]);
     try {
+      const fieldSchema = currentConfig.scopeFields.map(f => ({
+        key: f.key, label: f.label, type: f.type, required: !!f.required,
+        ...(f.options ? { options: f.options } : {})
+      }));
+      const subcatLabels = currentConfig.subcategories.map(s => s.label);
+
       const payload = {
         photos: photos.map(p => ({ image: p.base64, description: p.description })),
-        ...buildFullPayload()
+        ...buildFullPayload(),
+        scope_field_schema: fieldSchema,
+        subcategory_options: subcatLabels
       };
       const res = await axios.post(`${API_BASE}/api/ai/analyze-scope`, payload);
       const data = res.data.data;
@@ -147,6 +157,27 @@ export default function QuoteBuilder() {
           description: data.enhanced_scope.description || prev.description,
           site_notes: data.enhanced_scope.site_notes || prev.site_notes
         }));
+
+        if (data.enhanced_scope.subcategory) {
+          const matchedSub = subcatLabels.find(
+            s => s.toLowerCase() === data.enhanced_scope.subcategory.toLowerCase()
+          );
+          if (matchedSub) setSubcategory(matchedSub);
+        }
+
+        if (data.enhanced_scope.scope_fields && typeof data.enhanced_scope.scope_fields === 'object') {
+          setScopeData(prev => {
+            const merged = { ...prev };
+            for (const [key, value] of Object.entries(data.enhanced_scope.scope_fields)) {
+              if (value !== null && value !== undefined && value !== '') {
+                merged[key] = value;
+              }
+            }
+            return merged;
+          });
+        }
+
+        setNeedsAttention(data.enhanced_scope.unfilled_fields || []);
       }
       setAdditionalImages(data.additional_images_needed || []);
       setScopeAnalyzed(true);
@@ -237,6 +268,7 @@ export default function QuoteBuilder() {
     setQuestionAnswers({});
     setQuoteResult(null);
     setError(null);
+    setNeedsAttention([]);
   };
 
   const inputClass = "w-full bg-osv-bg/80 backdrop-blur-sm border border-white/10 p-3 h-11 text-osv-white text-sm rounded-lg focus:border-osv-accent/50 focus:ring-2 focus:ring-osv-accent/20 focus:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-200 outline-none placeholder:text-osv-muted";
@@ -390,8 +422,15 @@ export default function QuoteBuilder() {
             <DynamicScopeForm
               fields={currentConfig.scopeFields}
               scope={scopeData}
-              onChange={setScopeData}
+              onChange={(newScope) => {
+                setScopeData(newScope);
+                const changedKeys = Object.keys(newScope).filter(k => newScope[k] !== scopeData[k]);
+                if (changedKeys.length > 0) {
+                  setNeedsAttention(prev => prev.filter(k => !changedKeys.includes(k)));
+                }
+              }}
               disabled={scopeAnalyzed}
+              attentionFields={needsAttention}
             />
           )}
 

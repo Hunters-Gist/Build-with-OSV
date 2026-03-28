@@ -106,9 +106,18 @@ export function SubcategorySelect({ options, value, onChange, disabled, placehol
   );
 }
 
-export default function DynamicScopeForm({ fields, scope, onChange, disabled }) {
-  const inputClass = "w-full bg-osv-bg/80 backdrop-blur-sm border border-white/10 p-3 h-11 text-osv-white text-sm rounded-lg focus:border-osv-accent/50 focus:ring-2 focus:ring-osv-accent/20 focus:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-200 outline-none placeholder:text-osv-muted disabled:opacity-60";
-  const labelClass = "text-xs font-mono text-osv-muted tracking-wide mb-2 flex items-center";
+export default function DynamicScopeForm({ fields, scope, onChange, disabled, attentionFields = [] }) {
+  const baseInputClass = "w-full bg-osv-bg/80 backdrop-blur-sm p-3 h-11 text-osv-white text-sm rounded-lg focus:border-osv-accent/50 focus:ring-2 focus:ring-osv-accent/20 focus:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-200 outline-none placeholder:text-osv-muted disabled:opacity-60";
+  const baseLabelClass = "text-xs font-mono tracking-wide mb-2 flex items-center";
+
+  const getInputClass = (key) => {
+    const needsInput = attentionFields.includes(key);
+    return `${baseInputClass} border ${needsInput ? 'border-red-400/50' : 'border-white/10'}`;
+  };
+  const getLabelClass = (key) => {
+    const needsInput = attentionFields.includes(key);
+    return `${baseLabelClass} ${needsInput ? 'text-red-400' : 'text-osv-muted'}`;
+  };
 
   const handleChange = (key, value) => {
     onChange({ ...scope, [key]: value });
@@ -129,11 +138,17 @@ export default function DynamicScopeForm({ fields, scope, onChange, disabled }) 
 
   return (
     <div className="space-y-4">
-      {visibleFields.map(field => (
+      {visibleFields.map(field => {
+        const needsInput = attentionFields.includes(field.key);
+        const inputClass = getInputClass(field.key);
+        const labelClass = getLabelClass(field.key);
+
+        return (
         <div key={field.key}>
           <label className={labelClass}>
             {field.label.toUpperCase()}
             {field.required && <span className="text-osv-accent ml-1">*</span>}
+            {needsInput && <span className="ml-2 text-[10px] font-sans font-medium text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded">Needs input</span>}
             <HintTooltip hint={field.hint} />
           </label>
 
@@ -227,7 +242,8 @@ export default function DynamicScopeForm({ fields, scope, onChange, disabled }) 
             </button>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
