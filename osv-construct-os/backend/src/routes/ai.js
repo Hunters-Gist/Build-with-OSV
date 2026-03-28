@@ -271,6 +271,91 @@ router.post('/generate-quote', async (req, res) => {
     }
 });
 
+router.post('/classify-scope', async (req, res) => {
+    try {
+        const { photos, job_catalog = [] } = req.body;
+
+        if (!photos || !Array.isArray(photos) || photos.length < 3) {
+            return res.status(400).json({ error: 'A minimum of 3 site photos is required for scope classification.' });
+        }
+        if (photos.length > 5) {
+            return res.status(400).json({ error: 'A maximum of 5 photos is allowed.' });
+        }
+
+        if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY === 'dummy_key_for_now') {
+            return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env to use OSV Vision AI.' });
+        }
+
+        const catalog = Array.isArray(job_catalog) ? job_catalog : [];
+        const catalogBlock = catalog.length
+            ? `\n\n--- AVAILABLE JOB TYPES AND SUBCATEGORIES ---\n${catalog.map(job => {
+                const subs = Array.isArray(job.subcategories) ? job.subcategories : [];
+                const subText = subs.length ? subs.map(s => `      - "${s}"`).join('\n') : '      - (none)';
+                return `• Job Type: "${job.label}"\n  Subcategories:\n${subText}`;
+            }).join('\n')}\n`
+            : '';
+
+        const scopeFormatted = formatScopeForAI(req.body);
+        const systemPrompt = `You are a master construction estimator for Build With OSV.
+
+Your ONLY job in this call is to classify the job type and subcategory from photos and notes.
+Pick exactly one job_type from the provided AVAILABLE JOB TYPES list.
+Pick the best matching subcategory from that chosen job type list, or null if unclear.
+
+Return ONLY valid JSON in this exact shape, no markdown:
+{
+  "job_type": "Exact job type label from provided list",
+  "subcategory": "Exact subcategory label from the chosen job type list, or null",
+  "description": "Short improved scope description",
+  "site_notes": "Short hazards/access/material notes"
+}`;
+
+        const content = [];
+        photos.forEach((photo, idx) => {
+            const parsed = parseBase64Image(photo.image);
+            if (parsed) {
+                content.push({
+                    type: "image",
+                    source: { type: "base64", media_type: parsed.media_type, data: parsed.data }
+                });
+                content.push({
+                    type: "text",
+                    text: `Photo ${idx + 1} — User notes: ${photo.description || 'No description provided'}`
+                });
+            }
+        });
+
+        content.push({
+            type: "text",
+            text: `\n--- Structured Scope ---\n${scopeFormatted}${catalogBlock}\nClassify the best job type and subcategory using the provided catalog only.`
+        });
+
+        const msg = await anthropic.messages.create({
+            model: "openai/gpt-5.4",
+            max_tokens: 1000,
+            temperature: 0.05,
+            system: systemPrompt,
+            messages: [{ role: "user", content }]
+        });
+
+        let rawResponse = msg.content[0].text;
+        rawResponse = rawResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        let result;
+        try {
+            result = JSON.parse(rawResponse);
+        } catch (e) {
+            console.error("Classify-scope JSON parse error. Raw:", rawResponse);
+            return res.status(500).json({ error: 'AI returned invalid JSON during scope classification.' });
+        }
+
+        res.json({ success: true, data: result });
+    } catch (err) {
+        console.error("Classify Scope Error:", err);
+        res.status(500).json({ error: 'Failed to classify scope.' });
+    }
+});
+
 router.post('/analyze-scope', async (req, res) => {
     try {
         const { photos, scope_field_schema, subcategory_options } = req.body;

@@ -10,9 +10,9 @@ export default function QuoteBuilder() {
 
   // Step 1: Photos + Scope
   const [photos, setPhotos] = useState([]); // [{ id, file, preview, base64, description }]
-  const [jobTypeKey, setJobTypeKey] = useState(JOB_TYPE_KEYS[0]);
+  const [jobTypeKey, setJobTypeKey] = useState('');
   const [subcategory, setSubcategory] = useState('');
-  const [scopeData, setScopeData] = useState(getDefaultScope(JOB_TYPE_KEYS[0]));
+  const [scopeData, setScopeData] = useState({});
   const [formData, setFormData] = useState({
     description: '',
     site_notes: ''
@@ -105,7 +105,7 @@ export default function QuoteBuilder() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const currentConfig = JOB_TYPES[jobTypeKey];
+  const currentConfig = jobTypeKey ? JOB_TYPES[jobTypeKey] : null;
 
   const handleJobTypeChange = (newKey) => {
     setJobTypeKey(newKey);
@@ -122,89 +122,134 @@ export default function QuoteBuilder() {
   };
 
   const buildFullPayload = () => ({
-    job_type: currentConfig.label,
+    job_type: currentConfig?.label || '',
     subcategory,
     scope: scopeData,
     description: formData.description,
     site_notes: formData.site_notes
   });
 
+  const normalizeLabel = (value) => (
+    typeof value === 'string'
+      ? value.trim().toLowerCase().replace(/\s+/g, ' ')
+      : ''
+  );
+
+  const resolveJobTypeKey = (label, fallbackKey) => {
+    const normalized = normalizeLabel(label);
+    if (!normalized) return fallbackKey;
+    const exactByLabel = Object.entries(JOB_TYPES).find(
+      ([, config]) => normalizeLabel(config.label) === normalized
+    );
+    if (exactByLabel) return exactByLabel[0];
+    const exactByKey = JOB_TYPE_KEYS.find(key => normalizeLabel(key) === normalized);
+    return exactByKey || fallbackKey;
+  };
+
+  const resolveSubcategoryLabel = (subLabel, targetJobTypeKey) => {
+    const targetConfig = JOB_TYPES[targetJobTypeKey];
+    if (!targetConfig) return '';
+    const normalized = normalizeLabel(subLabel);
+    if (!normalized) return '';
+    const match = targetConfig.subcategories.find(
+      s => normalizeLabel(s.label) === normalized
+    );
+    return match ? match.label : '';
+  };
+
+  const buildScopeFieldSchema = (config) => (
+    config.scopeFields.map(f => ({
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      required: !!f.required,
+      ...(f.options ? { options: f.options } : {})
+    }))
+  );
+
   // Step 1: Analyze all photos + scope
   const handleAnalyzeScope = async () => {
+    if (!currentConfig) {
+      setError('Please select a job type before analyzing scope.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setNeedsAttention([]);
     try {
-      const fieldSchema = currentConfig.scopeFields.map(f => ({
-        key: f.key, label: f.label, type: f.type, required: !!f.required,
-        ...(f.options ? { options: f.options } : {})
+      const photosPayload = photos.map(p => ({ image: p.base64, description: p.description }));
+      const jobCatalog = JOB_TYPE_KEYS.map(key => ({
+        key,
+        label: JOB_TYPES[key].label,
+        subcategories: JOB_TYPES[key].subcategories.map(s => s.label)
       }));
-      const subcatLabels = currentConfig.subcategories.map(s => s.label);
 
-      const payload = {
-        photos: photos.map(p => ({ image: p.base64, description: p.description })),
+      const classifyPayload = {
+        photos: photosPayload,
         ...buildFullPayload(),
-        scope_field_schema: fieldSchema,
-        subcategory_options: subcatLabels
+        job_catalog: jobCatalog
       };
-      const res = await axios.post(`${API_BASE}/api/ai/analyze-scope`, payload);
-      const data = res.data.data;
+      const classifyRes = await axios.post(`${API_BASE}/api/ai/classify-scope`, classifyPayload);
+      const classified = classifyRes.data?.data || {};
 
-      setAnalysisResult(data);
-      if (data.enhanced_scope) {
-        const aiJobType = typeof data.enhanced_scope.job_type === 'string'
-          ? data.enhanced_scope.job_type.trim()
-          : '';
-        const matchedJobType = Object.entries(JOB_TYPES).find(
-          ([, config]) => config.label.toLowerCase() === aiJobType.toLowerCase()
-        );
-        const resolvedJobTypeKey = matchedJobType ? matchedJobType[0] : jobTypeKey;
-        const resolvedConfig = JOB_TYPES[resolvedJobTypeKey] || currentConfig;
-        const resolvedSubcatLabels = resolvedConfig.subcategories.map(s => s.label);
-        const resolvedScopeFieldKeys = new Set(resolvedConfig.scopeFields.map(f => f.key));
-
-        if (resolvedJobTypeKey !== jobTypeKey) {
-          setJobTypeKey(resolvedJobTypeKey);
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          description: data.enhanced_scope.description || prev.description,
-          site_notes: data.enhanced_scope.site_notes || prev.site_notes
-        }));
-
-        if (data.enhanced_scope.subcategory) {
-          const matchedSub = resolvedSubcatLabels.find(
-            s => s.toLowerCase() === data.enhanced_scope.subcategory.toLowerCase()
-          );
-          if (matchedSub) {
-            setSubcategory(matchedSub);
-          } else if (resolvedJobTypeKey !== jobTypeKey) {
-            setSubcategory('');
-          }
-        } else if (resolvedJobTypeKey !== jobTypeKey) {
-          setSubcategory('');
-        }
-
-        if (data.enhanced_scope.scope_fields && typeof data.enhanced_scope.scope_fields === 'object') {
-          setScopeData(prev => {
-            const merged = resolvedJobTypeKey === jobTypeKey
-              ? { ...prev }
-              : getDefaultScope(resolvedJobTypeKey);
-            for (const [key, value] of Object.entries(data.enhanced_scope.scope_fields)) {
-              if (!resolvedScopeFieldKeys.has(key)) continue;
-              if (value !== null && value !== undefined && value !== '') {
-                merged[key] = value;
-              }
-            }
-            return merged;
-          });
-        } else if (resolvedJobTypeKey !== jobTypeKey) {
-          setScopeData(getDefaultScope(resolvedJobTypeKey));
-        }
-
-        setNeedsAttention(data.enhanced_scope.unfilled_fields || []);
+      const resolvedJobTypeKey = resolveJobTypeKey(classified.job_type, jobTypeKey);
+      const resolvedConfig = JOB_TYPES[resolvedJobTypeKey] || currentConfig;
+      if (!resolvedConfig) {
+        throw new Error('Unable to resolve job type for scope analysis.');
       }
+      const resolvedSubcategory = resolveSubcategoryLabel(classified.subcategory, resolvedJobTypeKey);
+      const resolvedScopeSchema = buildScopeFieldSchema(resolvedConfig);
+      const resolvedSubcategoryOptions = resolvedConfig.subcategories.map(s => s.label);
+      const resolvedScopeForPrompt = resolvedJobTypeKey === jobTypeKey
+        ? scopeData
+        : getDefaultScope(resolvedJobTypeKey);
+
+      const analyzePayload = {
+        photos: photosPayload,
+        job_type: resolvedConfig.label,
+        subcategory: resolvedSubcategory || '',
+        scope: resolvedScopeForPrompt,
+        description: classified.description || formData.description,
+        site_notes: classified.site_notes || formData.site_notes,
+        scope_field_schema: resolvedScopeSchema,
+        subcategory_options: resolvedSubcategoryOptions
+      };
+      const analyzeRes = await axios.post(`${API_BASE}/api/ai/analyze-scope`, analyzePayload);
+      const data = analyzeRes.data?.data || {};
+      const enhancedScope = data.enhanced_scope || {};
+      const validScopeFieldKeys = new Set(resolvedConfig.scopeFields.map(f => f.key));
+      const aiSubcategory = resolveSubcategoryLabel(enhancedScope.subcategory, resolvedJobTypeKey);
+      const finalSubcategory = aiSubcategory || resolvedSubcategory || '';
+      const seededScope = resolvedJobTypeKey === jobTypeKey
+        ? { ...getDefaultScope(resolvedJobTypeKey), ...scopeData }
+        : getDefaultScope(resolvedJobTypeKey);
+      const hydratedScope = { ...seededScope };
+
+      if (enhancedScope.scope_fields && typeof enhancedScope.scope_fields === 'object') {
+        for (const [key, value] of Object.entries(enhancedScope.scope_fields)) {
+          if (!validScopeFieldKeys.has(key)) continue;
+          if (value !== null && value !== undefined && value !== '') {
+            hydratedScope[key] = value;
+          }
+        }
+      }
+      const nextDescription = enhancedScope.description || classified.description || formData.description;
+      const nextSiteNotes = enhancedScope.site_notes || classified.site_notes || formData.site_notes;
+      const nextNeedsAttention = Array.isArray(enhancedScope.unfilled_fields)
+        ? enhancedScope.unfilled_fields.filter(key => validScopeFieldKeys.has(key))
+        : [];
+
+      // Deterministic hydration order: trade → subcategory → scope → text fields → attention/images.
+      setJobTypeKey(resolvedJobTypeKey);
+      setSubcategory(finalSubcategory);
+      setScopeData(hydratedScope);
+      setFormData(prev => ({
+        ...prev,
+        description: nextDescription,
+        site_notes: nextSiteNotes
+      }));
+      setNeedsAttention(nextNeedsAttention);
+      setAnalysisResult(data);
       setAdditionalImages(data.additional_images_needed || []);
       setScopeAnalyzed(true);
     } catch (err) {
@@ -282,9 +327,9 @@ export default function QuoteBuilder() {
     photos.forEach(p => { if (p.preview) URL.revokeObjectURL(p.preview); });
     setStep(1);
     setPhotos([]);
-    setJobTypeKey(JOB_TYPE_KEYS[0]);
+    setJobTypeKey('');
     setSubcategory('');
-    setScopeData(getDefaultScope(JOB_TYPE_KEYS[0]));
+    setScopeData({});
     setFormData({ description: '', site_notes: '' });
     setScopeAnalyzed(false);
     setAnalysisResult(null);
@@ -406,7 +451,7 @@ export default function QuoteBuilder() {
         </div>
 
         {/* Analyze CTA */}
-        {!scopeAnalyzed && (
+        {!scopeAnalyzed && currentConfig && (
           <button
             onClick={handleAnalyzeScope}
             disabled={loading || photos.length < 3}
@@ -434,11 +479,18 @@ export default function QuoteBuilder() {
               onChange={e => handleJobTypeChange(e.target.value)}
               className={inputClass}
             >
+              <option value="">Select job type...</option>
               {JOB_TYPE_KEYS.map(key => (
                 <option key={key} value={key}>{JOB_TYPES[key].label}</option>
               ))}
             </select>
           </div>
+
+          {!currentConfig && (
+            <p className="text-xs text-osv-muted font-sans">
+              Choose a job type to reveal subcategory and scope fields.
+            </p>
+          )}
 
           {/* Subcategory */}
           {currentConfig && (
