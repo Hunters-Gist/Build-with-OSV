@@ -25,7 +25,7 @@ router.get('/', (req, res) => {
         ).get().count;
 
         const pendingApprovals = db.prepare(
-            `SELECT COUNT(*) as count FROM quotes WHERE status = 'sent'`
+            `SELECT COUNT(*) as count FROM quotes WHERE status IN ('issued', 'sent')`
         ).get().count;
 
         const jobsAtRisk = db.prepare(
@@ -46,17 +46,22 @@ router.get('/', (req, res) => {
         ).get().count;
 
         const overdueApprovals = db.prepare(
-            `SELECT COUNT(*) as count FROM quotes WHERE status = 'sent' AND sent_at IS NOT NULL AND sent_at < ?`
+            `SELECT COUNT(*) as count FROM quotes
+             WHERE status IN ('issued', 'sent')
+             AND COALESCE(issued_at, sent_at) IS NOT NULL
+             AND COALESCE(issued_at, sent_at) < ?`
         ).get(now - 5 * 86400000).count; // sent more than 5 days ago
 
         // --- QUOTE ACTIVITY SIDEBAR ---
         const sentToday = db.prepare(
-            `SELECT COUNT(*) as count FROM quotes WHERE sent_at >= ?`
+            `SELECT COUNT(*) as count FROM quotes WHERE COALESCE(issued_at, sent_at) >= ?`
         ).get(todayMs).count;
 
         // Average turnaround: time between created_at and sent_at for quotes that have been sent
         const turnaroundRow = db.prepare(
-            `SELECT AVG(sent_at - created_at) as avg_ms FROM quotes WHERE sent_at IS NOT NULL AND created_at IS NOT NULL`
+            `SELECT AVG(COALESCE(issued_at, sent_at) - created_at) as avg_ms
+             FROM quotes
+             WHERE COALESCE(issued_at, sent_at) IS NOT NULL AND created_at IS NOT NULL`
         ).get();
         const avgTurnaroundHrs = turnaroundRow.avg_ms
             ? (turnaroundRow.avg_ms / 3600000).toFixed(1)
@@ -77,8 +82,17 @@ router.get('/', (req, res) => {
 
         // --- PENDING APPROVAL DETAILS ---
         const pendingApprovalsList = db.prepare(
-            `SELECT quote_num, client_name, summary, sent_at, final_client_quote
-             FROM quotes WHERE status = 'sent' ORDER BY sent_at ASC LIMIT 5`
+            `SELECT id, quote_num, client_name, summary, sent_at, issued_at, final_client_quote
+             FROM quotes
+             WHERE status IN ('issued', 'sent')
+             ORDER BY COALESCE(issued_at, sent_at) ASC LIMIT 5`
+        ).all();
+
+        const depositReadyList = db.prepare(
+            `SELECT id, quote_num, client_name, summary, trade, final_client_quote, deposit_paid_at
+             FROM quotes
+             WHERE status = 'deposit_paid'
+             ORDER BY deposit_paid_at DESC LIMIT 5`
         ).all();
 
         // --- ALERTS & ISSUES ---
@@ -86,7 +100,11 @@ router.get('/', (req, res) => {
 
         // Stale quotes: sent > 5 days ago with no response
         const staleQuotes = db.prepare(
-            `SELECT quote_num, client_name FROM quotes WHERE status = 'sent' AND sent_at < ? ORDER BY sent_at ASC LIMIT 3`
+            `SELECT quote_num, client_name
+             FROM quotes
+             WHERE status IN ('issued', 'sent')
+             AND COALESCE(issued_at, sent_at) < ?
+             ORDER BY COALESCE(issued_at, sent_at) ASC LIMIT 3`
         ).all(now - 5 * 86400000);
         for (const q of staleQuotes) {
             alerts.push({ type: 'danger', message: `Overdue quote response: ${q.client_name} (${q.quote_num})` });
@@ -134,7 +152,9 @@ router.get('/', (req, res) => {
         ).get().total;
 
         const quotedValue = db.prepare(
-            `SELECT COALESCE(SUM(final_client_quote), 0) as total FROM quotes WHERE status IN ('draft', 'sent')`
+            `SELECT COALESCE(SUM(final_client_quote), 0) as total
+             FROM quotes
+             WHERE status IN ('draft', 'issued', 'accepted')`
         ).get().total;
 
         res.json({
@@ -163,6 +183,7 @@ router.get('/', (req, res) => {
                 recentQuotes,
                 activeJobsList,
                 pendingApprovalsList,
+                depositReadyList,
                 alerts,
                 modules: {
                     pipelineLeads,

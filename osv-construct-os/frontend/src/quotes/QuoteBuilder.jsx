@@ -14,6 +14,8 @@ export default function QuoteBuilder() {
   const [subcategory, setSubcategory] = useState('');
   const [scopeData, setScopeData] = useState({});
   const [formData, setFormData] = useState({
+    client_name: '',
+    client_email: '',
     description: '',
     site_notes: ''
   });
@@ -36,6 +38,7 @@ export default function QuoteBuilder() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [savedQuote, setSavedQuote] = useState(null); // { quoteId, quoteNum, status }
 
   const fileInputRef = useRef(null);
 
@@ -122,6 +125,8 @@ export default function QuoteBuilder() {
   };
 
   const buildFullPayload = () => ({
+    client_name: formData.client_name,
+    client_email: formData.client_email,
     job_type: currentConfig?.label || '',
     subcategory,
     scope: scopeData,
@@ -330,7 +335,7 @@ export default function QuoteBuilder() {
     setJobTypeKey('');
     setSubcategory('');
     setScopeData({});
-    setFormData({ description: '', site_notes: '' });
+    setFormData({ client_name: '', client_email: '', description: '', site_notes: '' });
     setScopeAnalyzed(false);
     setAnalysisResult(null);
     setAdditionalImages([]);
@@ -340,6 +345,51 @@ export default function QuoteBuilder() {
     setQuoteResult(null);
     setError(null);
     setNeedsAttention([]);
+    setSavedQuote(null);
+  };
+
+  const handleSaveDraftQuote = async () => {
+    if (!quoteResult) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = {
+        client_name: formData.client_name || "TBD Client",
+        client_email: formData.client_email || null,
+        trade: currentConfig?.label || 'General',
+        summary: quoteResult.scope_summary,
+        total_cost: quoteResult.financials.totalCost,
+        margin: quoteResult.financials.marginPct,
+        profit: quoteResult.financials.profit,
+        final_client_quote: quoteResult.financials.grandTotal,
+        generated_json: quoteResult,
+        status: 'draft'
+      };
+      const res = await axios.post(`${API_BASE}/api/quotes`, payload);
+      setSavedQuote({
+        quoteId: res.data.quoteId,
+        quoteNum: res.data.quoteNum,
+        status: 'draft'
+      });
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Database error executing save.');
+    }
+    setLoading(false);
+  };
+
+  const handleIssueQuote = async () => {
+    if (!savedQuote?.quoteId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await axios.patch(`${API_BASE}/api/quotes/${savedQuote.quoteId}`, { status: 'issued' });
+      setSavedQuote(prev => prev ? { ...prev, status: 'issued' } : prev);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Failed to issue quote.');
+    }
+    setLoading(false);
   };
 
   const inputClass = "w-full bg-osv-bg/80 backdrop-blur-sm border border-white/10 p-3 h-11 text-osv-white text-sm rounded-lg focus:border-osv-accent/50 focus:ring-2 focus:ring-osv-accent/20 focus:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-200 outline-none placeholder:text-osv-muted";
@@ -521,6 +571,28 @@ export default function QuoteBuilder() {
           )}
 
           {/* Common fields */}
+          <div>
+            <label className={labelClass}>CLIENT NAME</label>
+            <input
+              type="text"
+              placeholder="Client full name"
+              value={formData.client_name}
+              onChange={e => setFormData({ ...formData, client_name: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>CLIENT EMAIL</label>
+            <input
+              type="email"
+              placeholder="client@example.com"
+              value={formData.client_email}
+              onChange={e => setFormData({ ...formData, client_email: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
           <div>
             <label className={labelClass}>DESCRIPTION</label>
             <textarea
@@ -877,30 +949,40 @@ export default function QuoteBuilder() {
                   </div>
                 </div>
 
-                <button
-                  onClick={async () => {
-                    try {
-                      const payload = {
-                        client_name: "TBD Client",
-                        trade: currentConfig.label,
-                        summary: quoteResult.scope_summary,
-                        total_cost: quoteResult.financials.totalCost,
-                        margin: quoteResult.financials.marginPct,
-                        profit: quoteResult.financials.profit,
-                        final_client_quote: quoteResult.financials.grandTotal,
-                        generated_json: quoteResult
-                      };
-                      const res = await axios.post(`${API_BASE}/api/quotes`, payload);
-                      alert(`Quote Drafted: ${res.data.quoteNum}`);
-                    } catch (err) {
-                      console.error(err);
-                      alert('Database error executing save.');
-                    }
-                  }}
-                  className="w-full h-12 bg-transparent border border-osv-green/40 text-osv-green font-medium rounded-lg hover:bg-osv-green/10 hover:border-osv-green hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-green mt-4"
-                >
-                  Approve & Draft Quote
-                </button>
+                {!savedQuote && (
+                  <button
+                    onClick={handleSaveDraftQuote}
+                    disabled={loading}
+                    className="w-full h-12 bg-transparent border border-osv-green/40 text-osv-green font-medium rounded-lg hover:bg-osv-green/10 hover:border-osv-green hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-green mt-4 disabled:opacity-60"
+                  >
+                    {loading ? 'Saving Draft...' : 'Approve & Draft Quote'}
+                  </button>
+                )}
+
+                {savedQuote && (
+                  <div className="mt-4 space-y-3">
+                    <div className="bg-osv-green/5 border border-osv-green/20 rounded-lg p-3">
+                      <p className="text-xs text-osv-green font-mono tracking-wide">
+                        Draft saved: {savedQuote.quoteNum}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleIssueQuote}
+                      disabled={loading || savedQuote.status === 'issued'}
+                      className="w-full h-12 bg-osv-accent text-[#0A0A0F] font-medium rounded-lg hover:brightness-110 transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-accent disabled:opacity-60"
+                    >
+                      {savedQuote.status === 'issued' ? 'Quote Issued to Portal' : (loading ? 'Issuing Quote...' : 'Issue Quote to Client Portal')}
+                    </button>
+                    <a
+                      href={`/client/quote/${savedQuote.quoteNum}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block w-full h-11 leading-[44px] text-center bg-transparent border border-white/20 text-osv-white font-medium rounded-lg hover:bg-white/5 transition-all"
+                    >
+                      Open Client Portal
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

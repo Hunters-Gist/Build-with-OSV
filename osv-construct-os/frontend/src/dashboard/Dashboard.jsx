@@ -18,6 +18,9 @@ function timeAgo(ms) {
 function statusStyle(status) {
   switch (status) {
     case 'draft': return 'text-osv-muted border-osv-muted/30 bg-osv-muted/5';
+    case 'issued': return 'text-osv-accent border-osv-accent/30 bg-osv-accent/5';
+    case 'accepted': return 'text-cyan-400 border-cyan-400/30 bg-cyan-400/5';
+    case 'deposit_paid': return 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5';
     case 'sent': return 'text-osv-accent border-osv-accent/30 bg-osv-accent/5';
     case 'approved': return 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5';
     case 'won': return 'text-emerald-400 border-emerald-400/30 bg-emerald-400/5';
@@ -37,11 +40,16 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [handoffLoadingId, setHandoffLoadingId] = useState(null);
 
-  useEffect(() => {
+  const loadDashboard = () => {
     axios.get(`${API}/api/dashboard`)
       .then(res => { setData(res.data.data); setLoading(false); })
       .catch(err => { console.error(err); setError('Failed to load dashboard'); setLoading(false); });
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   if (loading) return (
@@ -60,7 +68,27 @@ export default function Dashboard() {
     </div>
   );
 
-  const { kpis, kpiTrends, quoteActivity, recentQuotes, activeJobsList, pendingApprovalsList, alerts, modules, pipelineValue, quotedValue } = data;
+  const { kpis, kpiTrends, quoteActivity, recentQuotes, activeJobsList, pendingApprovalsList, depositReadyList, alerts, modules, pipelineValue, quotedValue } = data;
+
+  const handleCreateJobFromDeposit = async (quote) => {
+    setHandoffLoadingId(quote.id);
+    try {
+      await axios.post(`${API}/api/jobs`, {
+        title: quote.summary || `${quote.trade || 'Trade'} Job`,
+        client_name: quote.client_name || 'Client',
+        client_addr: '',
+        trade: quote.trade || 'General',
+        scope_notes: quote.summary || `Converted from ${quote.quote_num}`,
+        quote_num: quote.quote_num
+      });
+      await axios.patch(`${API}/api/quotes/${quote.id}`, { status: 'won' });
+      loadDashboard();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || 'Failed to create job from deposit-paid quote');
+    }
+    setHandoffLoadingId(null);
+  };
 
   const kpiStrip = [
     { label: 'Open Leads', val: kpis.openLeads, trend: `+${kpiTrends.leadsThisWeek} this week`, trendColor: 'text-emerald-400' },
@@ -248,20 +276,45 @@ export default function Dashboard() {
                 {pendingApprovalsList.length === 0 ? (
                   <p className="text-osv-muted text-xs font-mono py-4 text-center">No pending approvals</p>
                 ) : pendingApprovalsList.map(q => {
-                  const isOverdue = q.sent_at && (Date.now() - q.sent_at > 5 * 86400000);
+                  const issuedTs = q.issued_at || q.sent_at;
+                  const isOverdue = issuedTs && (Date.now() - issuedTs > 5 * 86400000);
                   return (
                     <div key={q.quote_num} className="flex items-start gap-3">
                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${isOverdue ? 'bg-osv-red' : 'bg-osv-accent animate-pulse'}`}></div>
                        <div>
                           <div className="text-sm text-osv-white font-medium">{q.quote_num} — {q.client_name}</div>
                           <div className={`text-[10px] uppercase tracking-wider mt-1 ${isOverdue ? 'text-osv-red/80' : 'text-osv-muted'}`}>
-                            {isOverdue ? `Overdue • Sent ${timeAgo(q.sent_at)}` : `Awaiting • Sent ${timeAgo(q.sent_at)}`}
+                            {isOverdue ? `Overdue • Issued ${timeAgo(issuedTs)}` : `Awaiting • Issued ${timeAgo(issuedTs)}`}
                             {q.final_client_quote ? ` • $${q.final_client_quote.toLocaleString()}` : ''}
                           </div>
                        </div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-xl p-6 shadow-xl">
+              <h3 className="text-xs uppercase tracking-[0.15em] font-heading text-osv-white border-b border-white/5 pb-3 mb-4">Ready For Job Creation</h3>
+              <div className="space-y-3">
+                {depositReadyList.length === 0 ? (
+                  <p className="text-osv-muted text-xs font-mono py-4 text-center">No deposit-paid quotes waiting</p>
+                ) : depositReadyList.map(q => (
+                  <div key={q.id} className="bg-osv-bg/40 border border-white/5 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-mono text-osv-accent">{q.quote_num}</span>
+                      <span className="text-xs text-emerald-400">${(q.final_client_quote || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs text-osv-white mb-3">{q.client_name || 'Client'} — {q.summary || 'Quote ready for handoff'}</div>
+                    <button
+                      onClick={() => handleCreateJobFromDeposit(q)}
+                      disabled={handoffLoadingId === q.id}
+                      className="w-full px-3 py-2 text-[10px] font-semibold uppercase tracking-wider rounded border border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-60"
+                    >
+                      {handoffLoadingId === q.id ? 'Creating Job...' : 'Create Job (Manual Checkpoint)'}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

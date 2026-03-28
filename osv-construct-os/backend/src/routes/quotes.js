@@ -5,7 +5,19 @@ import { sendQuoteEmail } from '../services/communications.js';
 
 const router = express.Router();
 
-const VALID_STATUSES = ['draft', 'sent', 'approved', 'won', 'lost'];
+const VALID_STATUSES = ['draft', 'issued', 'accepted', 'deposit_paid', 'won', 'lost', 'sent', 'approved'];
+
+const ALLOWED_TRANSITIONS = {
+    draft: new Set(['issued', 'lost']),
+    issued: new Set(['accepted', 'lost']),
+    accepted: new Set(['deposit_paid', 'lost']),
+    deposit_paid: new Set(['won', 'lost']),
+    won: new Set([]),
+    lost: new Set([]),
+    // Backward compatibility with legacy statuses
+    sent: new Set(['approved', 'won', 'lost']),
+    approved: new Set(['won', 'lost'])
+};
 
 // GET all quotes
 router.get('/', (req, res) => {
@@ -44,11 +56,32 @@ router.patch('/:id', (req, res) => {
         const existing = db.prepare('SELECT * FROM quotes WHERE id = ? OR quote_num = ?').get(id, id);
         if (!existing) return res.status(404).json({ error: 'Quote not found' });
 
-        const now = Date.now();
-        const sentAt = (status === 'sent' && existing.status !== 'sent') ? now : existing.sent_at;
+        const nextStatus = status || existing.status;
+        if (status && status !== existing.status) {
+            const allowed = ALLOWED_TRANSITIONS[existing.status] || new Set();
+            if (!allowed.has(status)) {
+                return res.status(400).json({
+                    error: `Invalid status transition from ${existing.status} to ${status}`
+                });
+            }
+        }
 
-        db.prepare('UPDATE quotes SET status = COALESCE(?, status), sent_at = COALESCE(?, sent_at), updated_at = ? WHERE id = ?')
-          .run(status, sentAt, now, existing.id);
+        const now = Date.now();
+        const issuedAt = (nextStatus === 'issued' && existing.status !== 'issued') ? now : existing.issued_at;
+        const acceptedAt = (nextStatus === 'accepted' && existing.status !== 'accepted') ? now : existing.accepted_at;
+        const depositPaidAt = (nextStatus === 'deposit_paid' && existing.status !== 'deposit_paid') ? now : existing.deposit_paid_at;
+        const sentAt = (nextStatus === 'sent' && existing.status !== 'sent') ? now : existing.sent_at;
+
+        db.prepare(`
+            UPDATE quotes
+            SET status = COALESCE(?, status),
+                sent_at = ?,
+                issued_at = ?,
+                accepted_at = ?,
+                deposit_paid_at = ?,
+                updated_at = ?
+            WHERE id = ?
+        `).run(status, sentAt, issuedAt, acceptedAt, depositPaidAt, now, existing.id);
 
         res.json({ success: true });
     } catch (error) {
@@ -59,21 +92,27 @@ router.patch('/:id', (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { client_name, client_email, trade, summary, total_cost, margin, profit, final_client_quote, generated_json } = req.body;
+        const { client_name, client_email, trade, summary, total_cost, margin, profit, final_client_quote, generated_json, status } = req.body;
         const id = randomUUID();
         
         const stmt = db.prepare(`
-            INSERT INTO quotes (id, quote_num, client_name, trade, summary, total_cost, margin, profit, final_client_quote, generated_json, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+            INSERT INTO quotes (
+                id, quote_num, client_name, client_email, trade, summary,
+                total_cost, margin, profit, final_client_quote, generated_json,
+                status, issued_at, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         const quoteNum = `Q-${Math.floor(1000 + Math.random() * 9000)}`;
         const now = Date.now();
+        const nextStatus = VALID_STATUSES.includes(status) ? status : 'draft';
+        const issuedAt = nextStatus === 'issued' ? now : null;
         
         stmt.run(
-            id, quoteNum, client_name || 'Client', trade || 'General', summary || '',
+            id, quoteNum, client_name || 'Client', client_email || null, trade || 'General', summary || '',
             total_cost || 0, margin || 0, profit || 0, final_client_quote || 0,
-            JSON.stringify(generated_json || {}), now, now
+            JSON.stringify(generated_json || {}), nextStatus, issuedAt, now, now
         );
         
         // --- RESEND EMAIL NOTIFICATION PIPELINE ---

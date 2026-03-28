@@ -28,6 +28,12 @@ const migrations = [
     'ALTER TABLE jobs ADD COLUMN due_date TEXT',
     'ALTER TABLE jobs ADD COLUMN risk_flag TEXT',
     'ALTER TABLE quotes ADD COLUMN sent_at INTEGER',
+    'ALTER TABLE quotes ADD COLUMN client_email TEXT',
+    'ALTER TABLE quotes ADD COLUMN issued_at INTEGER',
+    'ALTER TABLE quotes ADD COLUMN accepted_at INTEGER',
+    'ALTER TABLE quotes ADD COLUMN deposit_paid_at INTEGER',
+    'ALTER TABLE quotes ADD COLUMN deposit_amount REAL',
+    'ALTER TABLE quotes ADD COLUMN stripe_session_id TEXT',
     'ALTER TABLE leads ADD COLUMN estimated_value REAL',
 ];
 
