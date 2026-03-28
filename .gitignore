@@ -1,0 +1,26 @@
+node_modules/
+.env*
+.DS_Store
+*.db
+*.sqlite
+
+# Logs & temp files
+*.log
+ngrok.log
+dep_id.txt
+srv_id.txt
+deploys.json
+svcs.json
+
+# OS & editor
+.vscode/
+.idea/
+*.sw?
+
+# Build output
+dist/
+dist-ssr/
+
+# Local memory
+.remember/
+.claude/
