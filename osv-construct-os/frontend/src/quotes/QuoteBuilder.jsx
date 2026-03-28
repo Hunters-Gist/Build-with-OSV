@@ -16,6 +16,8 @@ export default function QuoteBuilder() {
   const [formData, setFormData] = useState({
     client_name: '',
     client_email: '',
+    suburb: '',
+    postcode: '',
     description: '',
     site_notes: ''
   });
@@ -35,10 +37,12 @@ export default function QuoteBuilder() {
 
   // Step 4: Quote
   const [quoteResult, setQuoteResult] = useState(null);
+  const [materialOverrides, setMaterialOverrides] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [savedQuote, setSavedQuote] = useState(null); // { quoteId, quoteNum, status }
+  const [livePricingRefreshMeta, setLivePricingRefreshMeta] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -127,6 +131,9 @@ export default function QuoteBuilder() {
   const buildFullPayload = () => ({
     client_name: formData.client_name,
     client_email: formData.client_email,
+    suburb: formData.suburb,
+    postcode: formData.postcode,
+    client_addr: [formData.suburb, formData.postcode].filter(Boolean).join(' ').trim(),
     job_type: currentConfig?.label || '',
     subcategory,
     scope: scopeData,
@@ -176,6 +183,10 @@ export default function QuoteBuilder() {
   const handleAnalyzeScope = async () => {
     if (!currentConfig) {
       setError('Please select a job type before analyzing scope.');
+      return;
+    }
+    if (!formData.suburb?.trim() || !formData.postcode?.trim()) {
+      setError('Suburb and postcode are required before analyzing scope.');
       return;
     }
     setLoading(true);
@@ -294,6 +305,10 @@ export default function QuoteBuilder() {
 
   // Fetch qualifying questions (used from step 1 confirm or step 2 submit)
   const handleFetchQuestions = async () => {
+    if (!formData.suburb?.trim() || !formData.postcode?.trim()) {
+      setError('Suburb and postcode are required before continuing.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -309,21 +324,65 @@ export default function QuoteBuilder() {
   };
 
   // Step 3 → Step 4: Generate quote
+  const buildQuoteGenerationPayload = ({ forceRefreshLivePricing = false } = {}) => {
+    const imagesArray = getAllImages();
+    const qaFormatted = qualifyingQuestions.map(q => ({
+      question: q.text,
+      answer: questionAnswers[q.id] || "No answer provided"
+    }));
+    return {
+      ...buildFullPayload(),
+      images: imagesArray,
+      qa_responses: qaFormatted,
+      force_refresh_live_pricing: forceRefreshLivePricing,
+      material_overrides: Object.entries(materialOverrides).map(([lineItemIndex, value]) => ({
+        line_item_index: Number(lineItemIndex),
+        unit_price: value.unitPrice,
+        supplier_name: value.supplierName
+      }))
+    };
+  };
+
   const handleGenerateQuote = async () => {
+    if (!formData.suburb?.trim() || !formData.postcode?.trim()) {
+      setError('Suburb and postcode are required before generating a quote.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const imagesArray = getAllImages();
-      const qaFormatted = qualifyingQuestions.map(q => ({
-        question: q.text,
-        answer: questionAnswers[q.id] || "No answer provided"
-      }));
-      const payload = { ...buildFullPayload(), images: imagesArray, qa_responses: qaFormatted };
+      const payload = buildQuoteGenerationPayload({ forceRefreshLivePricing: false });
       const res = await axios.post(`${API_BASE}/api/ai/generate-quote`, payload);
       setQuoteResult(res.data.data);
+      setLivePricingRefreshMeta(null);
       setStep(4);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate quote.');
+    }
+    setLoading(false);
+  };
+
+  const handleRefreshLivePrices = async () => {
+    if (!quoteResult) return;
+    if (!formData.suburb?.trim() || !formData.postcode?.trim()) {
+      setError('Suburb and postcode are required before refreshing live prices.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const startedAt = Date.now();
+    try {
+      const payload = buildQuoteGenerationPayload({ forceRefreshLivePricing: true });
+      const res = await axios.post(`${API_BASE}/api/ai/generate-quote`, payload);
+      setQuoteResult(res.data.data);
+      const durationMs = Date.now() - startedAt;
+      setLivePricingRefreshMeta({
+        durationMs,
+        updatedAt: Date.now(),
+        sourceDurationMs: res.data?.data?.pricing_audit?.livePricingDurationMs ?? null
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to refresh live prices.');
     }
     setLoading(false);
   };
@@ -335,7 +394,7 @@ export default function QuoteBuilder() {
     setJobTypeKey('');
     setSubcategory('');
     setScopeData({});
-    setFormData({ client_name: '', client_email: '', description: '', site_notes: '' });
+    setFormData({ client_name: '', client_email: '', suburb: '', postcode: '', description: '', site_notes: '' });
     setScopeAnalyzed(false);
     setAnalysisResult(null);
     setAdditionalImages([]);
@@ -346,6 +405,91 @@ export default function QuoteBuilder() {
     setError(null);
     setNeedsAttention([]);
     setSavedQuote(null);
+    setMaterialOverrides({});
+    setLivePricingRefreshMeta(null);
+  };
+
+  const recalcFinancialsFromLineItems = (lineItems, currentFinancials) => {
+    const totalCost = lineItems.reduce((acc, item) => acc + Number(item.total || 0), 0);
+    let marginPct = Number(currentFinancials?.marginPct || 0.25);
+    let clientQuote = totalCost * (1 + marginPct);
+    let profit = clientQuote - totalCost;
+    let marginAdjustmentNote = currentFinancials?.marginAdjustmentNote || null;
+
+    if (profit < 500) {
+      profit = 500;
+      clientQuote = totalCost + profit;
+      marginPct = totalCost > 0 ? (profit / totalCost) : marginPct;
+      marginAdjustmentNote = 'Margin adjusted to meet minimum absolute profit threshold of $500.';
+    }
+
+    const gst = clientQuote * 0.10;
+    const grandTotal = clientQuote + gst;
+    return { totalCost, marginPct, clientQuote, profit, gst, grandTotal, marginAdjustmentNote };
+  };
+
+  const applyLocalMaterialOverride = (lineIndex, selectedOption) => {
+    if (!quoteResult || !selectedOption) return;
+    setQuoteResult(prev => {
+      if (!prev) return prev;
+      const nextLineItems = prev.line_items.map((item, idx) => {
+        if (idx !== lineIndex) return item;
+        const qty = Number(item.qty || 0);
+        const unitPrice = Number(selectedOption.unit_price);
+        return {
+          ...item,
+          unit_price: unitPrice,
+          total: qty > 0 ? Number((qty * unitPrice).toFixed(2)) : item.total
+        };
+      });
+      return {
+        ...prev,
+        line_items: nextLineItems,
+        financials: recalcFinancialsFromLineItems(nextLineItems, prev.financials)
+      };
+    });
+
+    setMaterialOverrides(prev => ({
+      ...prev,
+      [lineIndex]: {
+        unitPrice: Number(selectedOption.unit_price),
+        supplierName: selectedOption.supplier_name
+      }
+    }));
+  };
+
+  const getPricingSourceBadgeMeta = (audit) => {
+    if (!audit) {
+      return {
+        label: 'Source Unknown',
+        className: 'bg-white/5 border-white/10 text-osv-muted'
+      };
+    }
+
+    const source = String(audit.selected_source || '').toLowerCase();
+    if (source === 'tavily_live') {
+      return {
+        label: 'Live Source',
+        className: 'bg-osv-green/10 border-osv-green/30 text-osv-green'
+      };
+    }
+    if (source === 'tavily_cache') {
+      return {
+        label: 'Cached (24h)',
+        className: 'bg-osv-accent/10 border-osv-accent/30 text-osv-accent'
+      };
+    }
+    if (source === 'osv_supplier_baseline' || audit.fallbackUsed) {
+      return {
+        label: 'Baseline Fallback',
+        className: 'bg-osv-red/10 border-osv-red/30 text-osv-red'
+      };
+    }
+
+    return {
+      label: 'Derived Source',
+      className: 'bg-white/5 border-white/10 text-osv-muted'
+    };
   };
 
   const handleSaveDraftQuote = async () => {
@@ -356,6 +500,9 @@ export default function QuoteBuilder() {
       const payload = {
         client_name: formData.client_name || "TBD Client",
         client_email: formData.client_email || null,
+        client_addr: [formData.suburb, formData.postcode].filter(Boolean).join(' ').trim(),
+        client_suburb: formData.suburb || null,
+        client_postcode: formData.postcode || null,
         trade: currentConfig?.label || 'General',
         summary: quoteResult.scope_summary,
         total_cost: quoteResult.financials.totalCost,
@@ -591,6 +738,35 @@ export default function QuoteBuilder() {
               onChange={e => setFormData({ ...formData, client_email: e.target.value })}
               className={inputClass}
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>SUBURB <span className="text-osv-accent">*</span></label>
+              <input
+                type="text"
+                placeholder="e.g. Richmond"
+                value={formData.suburb}
+                onChange={e => setFormData({ ...formData, suburb: e.target.value })}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label className={labelClass}>POSTCODE <span className="text-osv-accent">*</span></label>
+              <input
+                type="text"
+                placeholder="e.g. 3121"
+                value={formData.postcode}
+                onChange={e => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setFormData({ ...formData, postcode: value });
+                }}
+                className={inputClass}
+                inputMode="numeric"
+                required
+              />
+            </div>
           </div>
 
           <div>
@@ -908,15 +1084,84 @@ export default function QuoteBuilder() {
                 </div>
 
                 <div>
-                  <h3 className="text-xs font-mono text-osv-muted tracking-wide mb-3">LINE ITEMS</h3>
+                  <div className="flex items-center justify-between mb-3 gap-3">
+                    <h3 className="text-xs font-mono text-osv-muted tracking-wide">LINE ITEMS</h3>
+                    <button
+                      onClick={handleRefreshLivePrices}
+                      disabled={loading}
+                      className="h-8 px-3 bg-transparent border border-osv-accent/40 text-osv-accent text-[10px] font-mono rounded-lg hover:bg-osv-accent/10 transition-all disabled:opacity-50"
+                    >
+                      {loading ? 'Refreshing...' : 'Refresh Live Prices'}
+                    </button>
+                  </div>
+                  {livePricingRefreshMeta && (
+                    <div className="mb-3 bg-osv-accent/5 border border-osv-accent/20 rounded-lg p-2">
+                      <p className="text-[10px] font-mono text-osv-accent">
+                        Live pricing refreshed in {livePricingRefreshMeta.durationMs}ms
+                        {Number.isFinite(livePricingRefreshMeta.sourceDurationMs) ? ` (engine ${livePricingRefreshMeta.sourceDurationMs}ms)` : ''}
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-3">
                     {quoteResult.line_items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-osv-alt/50 border border-white/5 p-4 rounded-xl hover:border-white/10 transition-colors">
-                        <div className="mr-4">
-                          <p className="text-osv-white font-medium text-sm mb-1">{item.name}</p>
-                          <p className="text-xs font-mono text-osv-muted">{item.qty} {item.unit} @ ${item.unit_price}</p>
+                      <div key={idx} className="bg-osv-alt/50 border border-white/5 p-4 rounded-xl hover:border-white/10 transition-colors">
+                        {(() => {
+                          const audit = Array.isArray(quoteResult?.pricing_audit?.materialAudits)
+                            ? quoteResult.pricing_audit.materialAudits.find(a => a.line_item_index === idx)
+                            : null;
+                          const badge = getPricingSourceBadgeMeta(audit);
+                          const confidencePct = Number.isFinite(Number(audit?.confidence))
+                            ? Math.round(Number(audit.confidence) * 100)
+                            : null;
+
+                          return item.category === 'Materials' ? (
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                              <span className={`text-[10px] font-mono tracking-wide uppercase px-2 py-1 rounded border ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                              <span className="text-[10px] font-mono text-osv-muted">
+                                {confidencePct !== null ? `Confidence ${confidencePct}%` : 'Confidence n/a'}
+                              </span>
+                            </div>
+                          ) : null;
+                        })()}
+                        <div className="flex justify-between items-center">
+                          <div className="mr-4">
+                            <p className="text-osv-white font-medium text-sm mb-1">{item.name}</p>
+                            <p className="text-xs font-mono text-osv-muted">{item.qty} {item.unit} @ ${item.unit_price}</p>
+                          </div>
+                          <p className="text-osv-accent font-medium font-mono">${item.total.toFixed(2)}</p>
                         </div>
-                        <p className="text-osv-accent font-medium font-mono">${item.total.toFixed(2)}</p>
+                        {item.category === 'Materials' && Array.isArray(quoteResult?.pricing_audit?.materialAudits) && (
+                          (() => {
+                            const audit = quoteResult.pricing_audit.materialAudits.find(a => a.line_item_index === idx);
+                            const options = audit?.override_options || [];
+                            if (!options.length) return null;
+                            return (
+                              <div className="mt-3 pt-3 border-t border-white/10">
+                                <p className="text-[10px] font-mono text-osv-muted uppercase tracking-wide mb-2">
+                                  Internal Override (Back Office)
+                                </p>
+                                <select
+                                  className="w-full bg-osv-bg/80 border border-white/10 p-2 text-osv-white text-xs rounded-lg focus:border-osv-accent/50 outline-none"
+                                  defaultValue=""
+                                  onChange={(e) => {
+                                    const selectedIdx = Number(e.target.value);
+                                    if (!Number.isInteger(selectedIdx) || selectedIdx < 0) return;
+                                    applyLocalMaterialOverride(idx, options[selectedIdx]);
+                                  }}
+                                >
+                                  <option value="">Select alternate supplier price...</option>
+                                  {options.map((opt, optionIdx) => (
+                                    <option key={`${idx}-${optionIdx}`} value={optionIdx}>
+                                      {opt.supplier_name} — ${Number(opt.unit_price).toFixed(2)} {opt.unit || item.unit}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })()
+                        )}
                       </div>
                     ))}
                   </div>

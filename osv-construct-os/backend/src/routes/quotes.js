@@ -92,16 +92,30 @@ router.patch('/:id', (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { client_name, client_email, trade, summary, total_cost, margin, profit, final_client_quote, generated_json, status } = req.body;
+        const {
+            client_name,
+            client_email,
+            client_addr,
+            client_suburb,
+            client_postcode,
+            trade,
+            summary,
+            total_cost,
+            margin,
+            profit,
+            final_client_quote,
+            generated_json,
+            status
+        } = req.body;
         const id = randomUUID();
         
         const stmt = db.prepare(`
             INSERT INTO quotes (
-                id, quote_num, client_name, client_email, trade, summary,
+                id, quote_num, client_name, client_email, client_addr, client_suburb, client_postcode, trade, summary,
                 total_cost, margin, profit, final_client_quote, generated_json,
                 status, issued_at, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         const quoteNum = `Q-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -110,7 +124,15 @@ router.post('/', async (req, res) => {
         const issuedAt = nextStatus === 'issued' ? now : null;
         
         stmt.run(
-            id, quoteNum, client_name || 'Client', client_email || null, trade || 'General', summary || '',
+            id,
+            quoteNum,
+            client_name || 'Client',
+            client_email || null,
+            client_addr || null,
+            client_suburb || null,
+            client_postcode || null,
+            trade || 'General',
+            summary || '',
             total_cost || 0, margin || 0, profit || 0, final_client_quote || 0,
             JSON.stringify(generated_json || {}), nextStatus, issuedAt, now, now
         );

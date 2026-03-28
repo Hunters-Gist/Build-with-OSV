@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS quotes (
     client_name TEXT,
     client_email TEXT,
     client_addr TEXT,
+    client_suburb TEXT,
+    client_postcode TEXT,
     client_contact TEXT,
     trade TEXT,
     summary TEXT,
@@ -38,6 +40,28 @@ CREATE TABLE IF NOT EXISTS quotes (
     generated_json TEXT,
     selected_materials TEXT,
     created_at INTEGER,
+    updated_at INTEGER
+);
+
+-- Live supplier pricing cache
+CREATE TABLE IF NOT EXISTS pricing_cache (
+    id TEXT PRIMARY KEY,
+    cache_key TEXT NOT NULL UNIQUE,
+    provider TEXT,
+    source_url TEXT,
+    search_query TEXT,
+    unit_price REAL,
+    unit TEXT,
+    raw_json TEXT,
+    updated_at INTEGER
+);
+
+-- Geocode/route lookup cache
+CREATE TABLE IF NOT EXISTS location_cache (
+    id TEXT PRIMARY KEY,
+    cache_key TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL,
+    value_json TEXT NOT NULL,
     updated_at INTEGER
 );
 

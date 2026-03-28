@@ -1,6 +1,7 @@
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import db from '../db/index.js';
+import { applyLiveSupplierPricing } from '../services/suppliers/pricingEngine.js';
 
 const router = express.Router();
 const anthropic = new Anthropic({
@@ -169,7 +170,7 @@ Return ONLY valid JSON in this exact format:
 
 router.post('/generate-quote', async (req, res) => {
     try {
-        const { force_manual_pricing, images, qa_responses } = req.body;
+        const { force_manual_pricing, force_refresh_live_pricing, images, qa_responses, material_overrides } = req.body;
         
         if (process.env.OPENROUTER_API_KEY === 'dummy_key_for_now' || !process.env.OPENROUTER_API_KEY) {
             return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env with your valid key to use the live AI engine.' });
@@ -230,6 +231,44 @@ router.post('/generate-quote', async (req, res) => {
              return res.status(500).json({ error: 'AI failed to return valid JSON format.' });
         }
 
+        let livePricingAudit = null;
+        if (!force_manual_pricing) {
+            const pricingStartedAt = Date.now();
+            const livePricingResult = await applyLiveSupplierPricing({
+                lineItems: generatedQuote.line_items || [],
+                tradeLabel: req.body.job_type || '',
+                suburb: req.body.suburb || '',
+                postcode: req.body.postcode || '',
+                forceRefresh: !!force_refresh_live_pricing
+            });
+            generatedQuote.line_items = livePricingResult.lineItems;
+            livePricingAudit = {
+                ...livePricingResult.pricingAudit,
+                forceRefresh: !!force_refresh_live_pricing,
+                livePricingDurationMs: Date.now() - pricingStartedAt
+            };
+        }
+
+        if (Array.isArray(material_overrides) && material_overrides.length > 0) {
+            for (const override of material_overrides) {
+                const index = Number(override?.line_item_index);
+                const overridePrice = Number(override?.unit_price);
+                if (!Number.isInteger(index) || !Number.isFinite(overridePrice)) continue;
+                const line = generatedQuote.line_items[index];
+                if (!line) continue;
+                const qty = Number(line.qty || 0);
+                generatedQuote.line_items[index] = {
+                    ...line,
+                    unit_price: overridePrice,
+                    total: qty > 0 ? Number((qty * overridePrice).toFixed(2)) : line.total
+                };
+            }
+            livePricingAudit = {
+                ...(livePricingAudit || {}),
+                overridesApplied: material_overrides
+            };
+        }
+
         let subLabour = generatedQuote.line_items.filter(i => i.category === 'Labour').reduce((acc, i) => acc + i.total, 0);
         let matTotal = generatedQuote.line_items.filter(i => i.category === 'Materials' || i.category === 'Disposal').reduce((acc, i) => acc + i.total, 0);
         
@@ -253,6 +292,7 @@ router.post('/generate-quote', async (req, res) => {
             success: true,
             data: {
                 ...generatedQuote,
+                pricing_audit: livePricingAudit,
                 financials: {
                     totalCost,
                     marginPct,
