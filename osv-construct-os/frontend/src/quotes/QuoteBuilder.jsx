@@ -549,115 +549,6 @@ export default function QuoteBuilder() {
     <div className="flex flex-col h-full">
       <div className="space-y-5 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-4">
 
-        {/* Photo Upload Zone */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className={labelClass}>SITE PHOTOS</label>
-            <span className={`text-xs font-mono tracking-wide ${photos.length >= 3 ? 'text-osv-green' : 'text-osv-muted'}`}>
-              {photos.length}/5 {photos.length < 3 ? `(min 3 required)` : '✓'}
-            </span>
-          </div>
-
-          {photos.length < 5 && !scopeAnalyzed && (
-            <div
-              onDrop={handleDrop}
-              onDragOver={e => e.preventDefault()}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center cursor-pointer hover:border-osv-accent/30 hover:bg-osv-accent/5 transition-all duration-200 group"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center mx-auto mb-3 group-hover:border-osv-accent/30 transition-colors">
-                <svg className="w-5 h-5 text-osv-muted group-hover:text-osv-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <p className="text-sm text-osv-muted font-sans">Drop photos here or <span className="text-osv-accent">browse</span></p>
-              <p className="text-xs text-osv-muted/60 mt-1 font-mono">Blueprints, sketches & site photos all accepted</p>
-            </div>
-          )}
-
-          {/* Photo Cards */}
-          {photos.length > 0 && (
-            <div className="space-y-3">
-              {photos.map((photo, idx) => (
-                <div key={photo.id} className="bg-osv-bg/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all">
-                  <div className="flex gap-3 p-3">
-                    <div className="relative shrink-0">
-                      <img
-                        src={photo.preview}
-                        alt={`Photo ${idx + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg border border-white/5"
-                      />
-                      <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-osv-accent text-[#0A0A0F] text-[10px] font-bold flex items-center justify-center shadow-lg">
-                        {idx + 1}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="text-xs font-mono text-osv-muted truncate">
-                          {photo.file.name}
-                        </p>
-                        {!scopeAnalyzed && (
-                          <button
-                            onClick={() => removePhoto(photo.id)}
-                            className="text-osv-muted hover:text-osv-red transition-colors p-0.5 shrink-0 ml-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                      <textarea
-                        value={photo.description}
-                        onChange={e => updatePhotoDescription(photo.id, e.target.value)}
-                        placeholder="Describe what this shows & what you need..."
-                        disabled={scopeAnalyzed}
-                        rows={2}
-                        className="w-full bg-osv-bg/60 border border-white/5 p-2 text-osv-white text-xs rounded-lg focus:border-osv-accent/50 focus:ring-1 focus:ring-osv-accent/20 transition-all outline-none placeholder:text-osv-muted/50 resize-none disabled:opacity-60"
-                      />
-                    </div>
-                  </div>
-                  {/* Per-photo AI analysis (shown after analysis) */}
-                  {scopeAnalyzed && analysisResult?.photo_analysis?.per_photo?.[idx] && (
-                    <div className="px-3 pb-3">
-                      <div className="bg-osv-accent/5 border border-osv-accent/10 rounded-lg p-2.5 flex items-start gap-2">
-                        <div className="w-1 h-full min-h-[16px] bg-osv-accent/40 rounded-full shrink-0 mt-0.5"></div>
-                        <div>
-                          <span className="text-[10px] font-mono text-osv-accent uppercase tracking-wider">
-                            {analysisResult.photo_analysis.per_photo[idx].type?.replace('_', ' ')}
-                          </span>
-                          <p className="text-xs text-osv-white/70 leading-relaxed mt-0.5">
-                            {analysisResult.photo_analysis.per_photo[idx].observations}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Analyze CTA */}
-        {!scopeAnalyzed && currentConfig && (
-          <button
-            onClick={handleAnalyzeScope}
-            disabled={loading || photos.length < 3}
-            className={btnPrimary}
-          >
-            {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
-          </button>
-        )}
-
         {/* Scope Fields */}
         <div className="border-t border-white/5 pt-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
@@ -791,6 +682,115 @@ export default function QuoteBuilder() {
             />
           </div>
         </div>
+
+        {/* Photo Upload Zone */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>SITE PHOTOS</label>
+            <span className={`text-xs font-mono tracking-wide ${photos.length >= 3 ? 'text-osv-green' : 'text-osv-muted'}`}>
+              {photos.length}/5 {photos.length < 3 ? `(min 3 required)` : '✓'}
+            </span>
+          </div>
+
+          {photos.length < 5 && !scopeAnalyzed && (
+            <div
+              onDrop={handleDrop}
+              onDragOver={e => e.preventDefault()}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center cursor-pointer hover:border-osv-accent/30 hover:bg-osv-accent/5 transition-all duration-200 group"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center mx-auto mb-3 group-hover:border-osv-accent/30 transition-colors">
+                <svg className="w-5 h-5 text-osv-muted group-hover:text-osv-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <p className="text-sm text-osv-muted font-sans">Drop photos here or <span className="text-osv-accent">browse</span></p>
+              <p className="text-xs text-osv-muted/60 mt-1 font-mono">Blueprints, sketches & site photos all accepted</p>
+            </div>
+          )}
+
+          {/* Photo Cards */}
+          {photos.length > 0 && (
+            <div className="space-y-3">
+              {photos.map((photo, idx) => (
+                <div key={photo.id} className="bg-osv-bg/50 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all">
+                  <div className="flex gap-3 p-3">
+                    <div className="relative shrink-0">
+                      <img
+                        src={photo.preview}
+                        alt={`Photo ${idx + 1}`}
+                        className="w-20 h-20 object-cover rounded-lg border border-white/5"
+                      />
+                      <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-osv-accent text-[#0A0A0F] text-[10px] font-bold flex items-center justify-center shadow-lg">
+                        {idx + 1}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="text-xs font-mono text-osv-muted truncate">
+                          {photo.file.name}
+                        </p>
+                        {!scopeAnalyzed && (
+                          <button
+                            onClick={() => removePhoto(photo.id)}
+                            className="text-osv-muted hover:text-osv-red transition-colors p-0.5 shrink-0 ml-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      <textarea
+                        value={photo.description}
+                        onChange={e => updatePhotoDescription(photo.id, e.target.value)}
+                        placeholder="Describe what this shows & what you need..."
+                        disabled={scopeAnalyzed}
+                        rows={2}
+                        className="w-full bg-osv-bg/60 border border-white/5 p-2 text-osv-white text-xs rounded-lg focus:border-osv-accent/50 focus:ring-1 focus:ring-osv-accent/20 transition-all outline-none placeholder:text-osv-muted/50 resize-none disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
+                  {/* Per-photo AI analysis (shown after analysis) */}
+                  {scopeAnalyzed && analysisResult?.photo_analysis?.per_photo?.[idx] && (
+                    <div className="px-3 pb-3">
+                      <div className="bg-osv-accent/5 border border-osv-accent/10 rounded-lg p-2.5 flex items-start gap-2">
+                        <div className="w-1 h-full min-h-[16px] bg-osv-accent/40 rounded-full shrink-0 mt-0.5"></div>
+                        <div>
+                          <span className="text-[10px] font-mono text-osv-accent uppercase tracking-wider">
+                            {analysisResult.photo_analysis.per_photo[idx].type?.replace('_', ' ')}
+                          </span>
+                          <p className="text-xs text-osv-white/70 leading-relaxed mt-0.5">
+                            {analysisResult.photo_analysis.per_photo[idx].observations}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Analyze CTA */}
+        {!scopeAnalyzed && currentConfig && (
+          <button
+            onClick={handleAnalyzeScope}
+            disabled={loading || photos.length < 3}
+            className={btnPrimary}
+          >
+            {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
+          </button>
+        )}
       </div>
 
       {/* Action Buttons */}
