@@ -2,9 +2,15 @@ export const JOB_TYPES = {
   fencing: {
     label: 'Fencing & Screening',
     subcategories: [
-      'Timber Paling Fence', 'Colorbond Fence', 'Aluminium Slat Fencing', 'Picket Fence',
-      'Pool Fencing (Compliant)', 'Acoustic / Noise Barrier Fencing', 'Privacy Screening',
-      'Retaining Wall + Fence Combo', 'Farm / Rural Fencing'
+      { label: 'Timber Paling Fence', hint: 'Classic wooden fence made from vertical timber boards (palings). The most popular style for backyard boundary fences in Melbourne.' },
+      { label: 'Colorbond Fence', hint: 'Steel fence panels in a range of colours. Low maintenance, durable, and gives a clean, modern look.' },
+      { label: 'Aluminium Slat Fencing', hint: 'Lightweight metal fence with horizontal or vertical slats. Popular for front yards and pool areas because of its sleek appearance.' },
+      { label: 'Picket Fence', hint: 'Traditional low fence with evenly spaced pointed or rounded timber boards. Typically used for front gardens.' },
+      { label: 'Pool Fencing (Compliant)', hint: 'Fencing that meets Australian safety standards for swimming pool barriers, including self-closing gates and specific height requirements.' },
+      { label: 'Acoustic / Noise Barrier Fencing', hint: 'Extra-thick fence designed to block sound from busy roads or neighbours. Uses dense materials and sealed construction.' },
+      { label: 'Privacy Screening', hint: 'Panels or screens that block the view into your yard. Can be timber, aluminium, or composite slats.' },
+      { label: 'Retaining Wall + Fence Combo', hint: 'A retaining wall with a fence built on top. Used when the ground level is different on each side of the boundary.' },
+      { label: 'Farm / Rural Fencing', hint: 'Post-and-wire or post-and-rail fencing for large rural properties, paddocks, and livestock.' }
     ],
     scopeFields: [
       { key: 'linear_metres', label: 'Linear Metres (m)', type: 'number', required: true,
@@ -36,9 +42,12 @@ export const JOB_TYPES = {
   decking: {
     label: 'Decking',
     subcategories: [
-      'Timber Decking (Merbau, Spotted Gum, Treated Pine)', 'Composite Decking',
-      'Rooftop Decking', 'Pool Decking', 'Elevated / Multi-Level Decking',
-      'Deck Restoration & Resurfacing'
+      { label: 'Timber Decking (Merbau, Spotted Gum, Treated Pine)', hint: 'Traditional hardwood or treated pine deck boards. Natural timber look with grain and character.' },
+      { label: 'Composite Decking', hint: 'Boards made from a mix of wood fibre and plastic. Low maintenance, won\'t splinter or rot, and comes in many colours.' },
+      { label: 'Rooftop Decking', hint: 'Decking installed on a flat roof or upper-level surface. Requires special waterproofing and lightweight materials.' },
+      { label: 'Pool Decking', hint: 'Decking built around a swimming pool. Uses slip-resistant, water-tolerant materials that stay cool underfoot.' },
+      { label: 'Elevated / Multi-Level Decking', hint: 'Decks raised well above ground, often with multiple tiers or split levels connected by stairs.' },
+      { label: 'Deck Restoration & Resurfacing', hint: 'Bringing an old deck back to life by sanding, repairing, and re-coating the existing boards and frame.' }
     ],
     scopeFields: [
       { key: 'deck_area', label: 'Deck Area (m\u00B2)', type: 'number', required: true,
@@ -75,8 +84,13 @@ export const JOB_TYPES = {
   pergolas: {
     label: 'Pergolas & Outdoor Living',
     subcategories: [
-      'Timber Pergola', 'Steel Pergola', 'Insulated Patio (Stratco / Lysaght)',
-      'Shade Sail Structure', 'Outdoor Kitchen / BBQ Area', 'Alfresco Extension', 'Carport'
+      { label: 'Timber Pergola', hint: 'An open-roofed outdoor structure built from timber posts and beams. Provides shade and defines your outdoor living area.' },
+      { label: 'Steel Pergola', hint: 'A pergola with steel posts and frame. Slimmer, stronger, and more modern than timber, with longer spans between posts.' },
+      { label: 'Insulated Patio (Stratco / Lysaght)', hint: 'A fully roofed outdoor area using insulated panels. Keeps it cool in summer and dry in the rain.' },
+      { label: 'Shade Sail Structure', hint: 'Tensioned fabric sails stretched between posts or anchor points. An affordable way to create shade over outdoor areas.' },
+      { label: 'Outdoor Kitchen / BBQ Area', hint: 'A built-in cooking and entertaining space with countertops, storage, and connections for a BBQ, sink, or fridge.' },
+      { label: 'Alfresco Extension', hint: 'An extension of your home\'s living area into the outdoors, typically with a roof, and often enclosed on one or more sides.' },
+      { label: 'Carport', hint: 'A covered structure for parking cars, usually open on one or more sides. Can be attached to the house or freestanding.' }
     ],
     scopeFields: [
       { key: 'length', label: 'Footprint Length (m)', type: 'number', required: true,
@@ -112,9 +126,15 @@ export const JOB_TYPES = {
   landscaping: {
     label: 'Landscaping & Garden Construction',
     subcategories: [
-      'Garden Bed Construction', 'Retaining Walls (Timber / Stone / Concrete)',
-      'Paving & Pathways', 'Turf & Lawn Installation', 'Irrigation Systems',
-      'Drainage Solutions', 'Garden Lighting', 'Water Features', 'Planting & Mulching'
+      { label: 'Garden Bed Construction', hint: 'Building raised or in-ground garden beds with edging, soil, and planting-ready preparation.' },
+      { label: 'Retaining Walls (Timber / Stone / Concrete)', hint: 'Walls that hold back soil on sloped land. Built from sleepers, stone, or concrete blocks to create level areas.' },
+      { label: 'Paving & Pathways', hint: 'Hard surfaces like concrete, brick, or stone pavers laid for driveways, patios, or walkways.' },
+      { label: 'Turf & Lawn Installation', hint: 'Laying fresh rolls of turf grass to create an instant lawn, including soil preparation and levelling.' },
+      { label: 'Irrigation Systems', hint: 'Automated watering systems with sprinklers, drip lines, and timers to keep your garden watered without a hose.' },
+      { label: 'Drainage Solutions', hint: 'Underground pipes, pits, and channels that carry water away from your property to prevent flooding and erosion.' },
+      { label: 'Garden Lighting', hint: 'Low-voltage outdoor lights for paths, garden beds, and feature areas. Creates ambiance and improves safety at night.' },
+      { label: 'Water Features', hint: 'Decorative fountains, ponds, or cascading water elements that add a calming focal point to your garden.' },
+      { label: 'Planting & Mulching', hint: 'Selecting and planting trees, shrubs, and ground covers, then spreading mulch to retain moisture and suppress weeds.' }
     ],
     scopeFields: [
       { key: 'site_area', label: 'Total Site Area (m\u00B2)', type: 'number', required: true,
@@ -167,9 +187,12 @@ export const JOB_TYPES = {
   excavation: {
     label: 'Excavation, Site Clearing & Levelling',
     subcategories: [
-      'Residential Excavation', 'Site Clearing (Vegetation / Demolition)',
-      'Cut & Fill / Site Levelling', 'Trenching (Drainage / Services)',
-      'Rock Breaking / Removal', 'Bobcat / Mini Excavator Work'
+      { label: 'Residential Excavation', hint: 'Digging and earthmoving for house sites, pools, driveways, or foundations on residential properties.' },
+      { label: 'Site Clearing (Vegetation / Demolition)', hint: 'Removing trees, shrubs, old structures, or debris from a site before construction begins.' },
+      { label: 'Cut & Fill / Site Levelling', hint: 'Cutting soil from high spots and filling low spots to create a flat, even surface ready for building.' },
+      { label: 'Trenching (Drainage / Services)', hint: 'Digging narrow channels in the ground for pipes, cables, or drainage lines.' },
+      { label: 'Rock Breaking / Removal', hint: 'Breaking up and removing large rocks or boulders from the site using a hydraulic hammer or similar equipment.' },
+      { label: 'Bobcat / Mini Excavator Work', hint: 'General earthmoving using a small bobcat or mini excavator. Ideal for tight spaces where large machines can\'t fit.' }
     ],
     scopeFields: [
       { key: 'area', label: 'Area (m\u00B2)', type: 'number', required: true,
@@ -202,8 +225,13 @@ export const JOB_TYPES = {
   cladding: {
     label: 'Cladding & Feature Walls',
     subcategories: [
-      'Timber Cladding', 'Composite / PVC Cladding', 'Stone & Brick Feature Walls',
-      'Metal Cladding (Colorbond / Aluminium)', 'Rendered Feature Walls', 'Acoustic Panelling'
+      { label: 'Timber Cladding', hint: 'Real wood boards fixed to walls for a warm, natural look. Available in profiles like shiplap, weatherboard, and tongue-and-groove.' },
+      { label: 'Composite / PVC Cladding', hint: 'Synthetic or mixed-material boards that look like timber but don\'t need painting or staining. Weather-resistant and low maintenance.' },
+      { label: 'Stone & Brick Feature Walls', hint: 'Natural or manufactured stone and brick applied to walls for a textured, premium look. Common for fireplaces and entrance features.' },
+      { label: 'Metal Cladding (Colorbond / Aluminium)', hint: 'Steel or aluminium sheets or panels fixed to walls. Gives a modern, industrial look and is highly durable.' },
+      { label: 'Rendered Feature Walls', hint: 'A cement-based coating applied to walls and finished smooth or textured. Can be painted any colour for a clean, contemporary style.' },
+      { label: 'Acoustic Panelling', hint: 'Panels designed to absorb sound and reduce echo. Used in home theatres, offices, studios, and noisy rooms.' },
+      { label: 'MDF Panels', hint: 'Medium-density fibreboard panels with a smooth, paintable surface. Affordable and versatile for interior feature walls, wainscoting, and decorative panelling.' }
     ],
     scopeFields: [
       { key: 'wall_area', label: 'Wall Area (m\u00B2)', type: 'number', required: true,
@@ -229,8 +257,12 @@ export const JOB_TYPES = {
   carpentry: {
     label: 'Carpentry & Bespoke Timber Work',
     subcategories: [
-      'Custom Furniture', 'Built-in Shelving & Cabinetry', 'Timber Doors & Windows',
-      'Staircase Construction', 'Timber Screens & Partitions', 'Structural Timber Beams'
+      { label: 'Custom Furniture', hint: 'One-off pieces designed and built to your exact requirements. Tables, benches, desks, bed frames, and more.' },
+      { label: 'Built-in Shelving & Cabinetry', hint: 'Shelves and cabinets built into the walls of your home for a seamless, space-saving look.' },
+      { label: 'Timber Doors & Windows', hint: 'Handcrafted or custom-sized timber door and window frames. Solid timber gives excellent insulation and character.' },
+      { label: 'Staircase Construction', hint: 'Building internal or external staircases from timber, including treads, risers, stringers, and handrails.' },
+      { label: 'Timber Screens & Partitions', hint: 'Decorative timber panels or slatted screens used to divide spaces or add visual interest without a solid wall.' },
+      { label: 'Structural Timber Beams', hint: 'Load-bearing timber beams that support roofs, floors, or other structures. Often left exposed as a design feature.' }
     ],
     scopeFields: [
       { key: 'timber_species', label: 'Timber Species', type: 'select',
@@ -254,9 +286,14 @@ export const JOB_TYPES = {
   painting: {
     label: 'Painting, Staining & Surface Finishes',
     subcategories: [
-      'Interior House Painting', 'Exterior House Painting', 'Deck & Fence Staining / Oiling',
-      'Commercial Painting', 'Feature Wall / Accent Colours', 'Surface Prep & Repair',
-      'Spray Painting', 'Anti-Graffiti / Protective Coatings'
+      { label: 'Interior House Painting', hint: 'Painting walls, ceilings, doors, and trim inside your home. Includes prep work like filling holes and sanding.' },
+      { label: 'Exterior House Painting', hint: 'Painting the outside of your house, including walls, fascias, gutters, and trim. Protects against weather.' },
+      { label: 'Deck & Fence Staining / Oiling', hint: 'Applying stain or oil to timber decks and fences to protect them from sun, rain, and wear.' },
+      { label: 'Commercial Painting', hint: 'Painting for shops, offices, warehouses, and other business premises. Often done after hours to avoid disruption.' },
+      { label: 'Feature Wall / Accent Colours', hint: 'Painting one wall a bold or different colour to create a focal point in a room.' },
+      { label: 'Surface Prep & Repair', hint: 'Fixing damaged surfaces before painting — patching holes, sanding rough areas, removing old paint, and priming.' },
+      { label: 'Spray Painting', hint: 'Using a spray gun instead of brushes or rollers for a smooth, even finish. Ideal for large areas, fences, and furniture.' },
+      { label: 'Anti-Graffiti / Protective Coatings', hint: 'Clear or coloured coatings that protect surfaces from graffiti, UV damage, stains, and moisture.' }
     ],
     scopeFields: [
       { key: 'surface_type', label: 'Surface Type', type: 'select',
@@ -288,9 +325,13 @@ export const JOB_TYPES = {
   structural: {
     label: 'Structural & Framing Work',
     subcategories: [
-      'Wall Framing (Timber / Steel)', 'Roof Framing & Trusses', 'Bearer & Joist Systems',
-      'Steel Beam Installation', 'Post & Pier Footings', 'Demolition & Strip-Out',
-      'Load-Bearing Wall Modifications'
+      { label: 'Wall Framing (Timber / Steel)', hint: 'Building the skeleton of internal or external walls using timber studs or steel frames.' },
+      { label: 'Roof Framing & Trusses', hint: 'Building the timber or steel structure that supports the roof, including rafters, ridge beams, and prefabricated trusses.' },
+      { label: 'Bearer & Joist Systems', hint: 'The horizontal framework that supports floors and decks. Bearers carry the load to posts; joists sit on top and support the flooring.' },
+      { label: 'Steel Beam Installation', hint: 'Installing heavy steel beams (I-beams) to support roofs, floors, or openings where walls have been removed.' },
+      { label: 'Post & Pier Footings', hint: 'Concrete foundations poured into holes in the ground that anchor posts and support structures above.' },
+      { label: 'Demolition & Strip-Out', hint: 'Safely tearing down walls, ceilings, floors, or entire structures and removing the debris from site.' },
+      { label: 'Load-Bearing Wall Modifications', hint: 'Removing or altering walls that carry the weight of the building. Requires temporary supports and a new beam.' }
     ],
     scopeFields: [
       { key: 'structure_type', label: 'Structure Type', type: 'text',
@@ -319,9 +360,13 @@ export const JOB_TYPES = {
   renovations: {
     label: 'Renovations & Fit-Outs',
     subcategories: [
-      'Bathroom Renovation', 'Kitchen Renovation', 'Laundry Renovation',
-      'Full House Renovation', 'Room Addition / Extension', 'Garage Conversion',
-      'Granny Flat / Studio'
+      { label: 'Bathroom Renovation', hint: 'A full or partial makeover of your bathroom including tiling, plumbing, waterproofing, and new fixtures.' },
+      { label: 'Kitchen Renovation', hint: 'Updating your kitchen with new cabinetry, benchtops, splashbacks, appliances, and layout changes.' },
+      { label: 'Laundry Renovation', hint: 'Revamping your laundry with new cabinetry, tiling, plumbing, and better storage and layout.' },
+      { label: 'Full House Renovation', hint: 'A complete overhaul of your home covering multiple rooms, often including structural, plumbing, and electrical changes.' },
+      { label: 'Room Addition / Extension', hint: 'Building a new room or extending an existing one to add living space. Includes footings, framing, and all finishes.' },
+      { label: 'Garage Conversion', hint: 'Turning your garage into a liveable space like a bedroom, home office, or studio. Includes insulation, flooring, and windows.' },
+      { label: 'Granny Flat / Studio', hint: 'A self-contained small dwelling built on your property, typically with its own kitchen, bathroom, and entrance.' }
     ],
     scopeFields: [
       { key: 'room_area', label: 'Room / Space Area (m\u00B2)', type: 'number', required: true,
@@ -349,8 +394,11 @@ export const JOB_TYPES = {
   commercial: {
     label: 'Commercial Fit-Outs',
     subcategories: [
-      'Office Fit-Out', 'Retail Fit-Out', 'Hospitality Fit-Out (Cafe / Restaurant / Bar)',
-      'Medical / Dental Fit-Out', 'Warehouse / Industrial Fit-Out'
+      { label: 'Office Fit-Out', hint: 'Designing and building an office workspace including partitions, desks, meeting rooms, and common areas.' },
+      { label: 'Retail Fit-Out', hint: 'Building the interior of a shop or showroom including display areas, counters, storage, and signage.' },
+      { label: 'Hospitality Fit-Out (Cafe / Restaurant / Bar)', hint: 'Constructing the interior of a food or drink venue including kitchen, bar, seating areas, and service zones.' },
+      { label: 'Medical / Dental Fit-Out', hint: 'Specialised fit-out for medical or dental practices with strict hygiene, ventilation, and accessibility requirements.' },
+      { label: 'Warehouse / Industrial Fit-Out', hint: 'Setting up a warehouse or industrial space with offices, mezzanines, racking, and loading areas.' }
     ],
     scopeFields: [
       { key: 'floor_area', label: 'Floor Area (m\u00B2)', type: 'number', required: true,
@@ -376,9 +424,14 @@ export const JOB_TYPES = {
   maintenance: {
     label: 'Property Maintenance & Handyman Services',
     subcategories: [
-      'General Repairs', 'Door & Window Repairs / Replacement', 'Lock & Hardware Replacement',
-      'Gutter Cleaning & Repairs', 'Pressure Washing', 'Minor Carpentry',
-      'Fixture Installation (Shelves / Blinds / TVs)', 'Weatherproofing & Sealing'
+      { label: 'General Repairs', hint: 'Fixing everyday wear-and-tear items around the home like loose handles, cracked tiles, dripping taps, and squeaky hinges.' },
+      { label: 'Door & Window Repairs / Replacement', hint: 'Fixing or replacing doors and windows that are damaged, stuck, draughty, or outdated.' },
+      { label: 'Lock & Hardware Replacement', hint: 'Swapping out old locks, handles, hinges, and other door or window hardware for new ones.' },
+      { label: 'Gutter Cleaning & Repairs', hint: 'Clearing debris from gutters and downpipes, and fixing any leaks, rust holes, or sagging sections.' },
+      { label: 'Pressure Washing', hint: 'Using a high-pressure water spray to clean driveways, paths, decks, walls, and other outdoor surfaces.' },
+      { label: 'Minor Carpentry', hint: 'Small timber jobs like fixing a broken shelf, replacing skirting boards, trimming a door, or patching timber damage.' },
+      { label: 'Fixture Installation (Shelves / Blinds / TVs)', hint: 'Mounting and installing items on walls or ceilings, including shelves, curtain rods, blinds, mirrors, and TV brackets.' },
+      { label: 'Weatherproofing & Sealing', hint: 'Sealing gaps around doors, windows, and other openings to keep out draughts, rain, and pests.' }
     ],
     scopeFields: [
       { key: 'task_description', label: 'Task Description', type: 'textarea', required: true,
@@ -402,8 +455,11 @@ export const JOB_TYPES = {
   rendering_design: {
     label: '3D Rendering & Visual Design',
     subcategories: [
-      'Architectural 3D Renders', 'Landscape Design Renders', 'Interior Design Visualisation',
-      'Before & After Concepts', 'Drone Survey / Site Modelling'
+      { label: 'Architectural 3D Renders', hint: 'Photorealistic computer-generated images of a proposed building or structure, showing exactly how it will look when finished.' },
+      { label: 'Landscape Design Renders', hint: '3D visualisations of garden and outdoor designs, including plants, paving, structures, and lighting.' },
+      { label: 'Interior Design Visualisation', hint: '3D images of proposed interior layouts showing furniture, materials, colours, and lighting in realistic detail.' },
+      { label: 'Before & After Concepts', hint: 'Side-by-side images showing the current state and the proposed design, so you can clearly see the transformation.' },
+      { label: 'Drone Survey / Site Modelling', hint: 'Using a drone to capture aerial photos and measurements of a site, then creating a 3D model from the data.' }
     ],
     scopeFields: [
       { key: 'project_description', label: 'Project Description', type: 'textarea', required: true,
@@ -428,8 +484,11 @@ export const JOB_TYPES = {
   project_management: {
     label: 'Project Management & Quoting',
     subcategories: [
-      'Full Project Management', 'Quoting & Estimation Only', 'Site Supervision',
-      'Trade Coordination', 'Council / Permit Applications'
+      { label: 'Full Project Management', hint: 'We oversee your entire project from start to finish, coordinating trades, scheduling, budgeting, and quality control.' },
+      { label: 'Quoting & Estimation Only', hint: 'We provide a detailed cost estimate and scope of works without managing the project. You can use it to plan or compare.' },
+      { label: 'Site Supervision', hint: 'Regular on-site visits to check work quality, resolve issues, and keep the project on track and up to standard.' },
+      { label: 'Trade Coordination', hint: 'Scheduling and managing multiple tradespeople so they arrive in the right order and don\'t overlap or delay each other.' },
+      { label: 'Council / Permit Applications', hint: 'Preparing and lodging building or planning permit applications with your local council on your behalf.' }
     ],
     scopeFields: [
       { key: 'project_description', label: 'Project Description', type: 'textarea', required: true,

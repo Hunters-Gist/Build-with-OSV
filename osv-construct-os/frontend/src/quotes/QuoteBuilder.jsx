@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { JOB_TYPES, JOB_TYPE_KEYS, getDefaultScope } from './jobTypeConfig';
-import DynamicScopeForm from './DynamicScopeForm';
+import DynamicScopeForm, { SubcategorySelect } from './DynamicScopeForm';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
 
@@ -357,17 +357,12 @@ export default function QuoteBuilder() {
           {currentConfig && (
             <div>
               <label className={labelClass}>SUBCATEGORY</label>
-              <select
+              <SubcategorySelect
+                options={currentConfig.subcategories}
                 value={subcategory}
-                onChange={e => handleSubcategoryChange(e.target.value)}
+                onChange={handleSubcategoryChange}
                 disabled={scopeAnalyzed}
-                className={inputClass}
-              >
-                <option value="">Select a subcategory...</option>
-                {currentConfig.subcategories.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
-                ))}
-              </select>
+              />
             </div>
           )}
 

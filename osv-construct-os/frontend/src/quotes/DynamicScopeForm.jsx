@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 function HintTooltip({ hint }) {
   const [visible, setVisible] = useState(false);
@@ -24,6 +24,85 @@ function HintTooltip({ hint }) {
         </div>
       )}
     </span>
+  );
+}
+
+export function SubcategorySelect({ options, value, onChange, disabled, placeholder = 'Select a subcategory...' }) {
+  const [open, setOpen] = useState(false);
+  const [activeHint, setActiveHint] = useState(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setActiveHint(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const selectedOption = options.find(o => o.label === value);
+  const inputClass = "w-full bg-osv-bg/80 backdrop-blur-sm border border-white/10 p-3 h-11 text-sm rounded-lg focus:border-osv-accent/50 focus:ring-2 focus:ring-osv-accent/20 transition-all duration-200 outline-none disabled:opacity-60 cursor-pointer flex items-center justify-between";
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(v => !v)}
+        className={`${inputClass} ${value ? 'text-osv-white' : 'text-osv-muted'}`}
+      >
+        <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+        <svg className={`w-4 h-4 ml-2 shrink-0 text-osv-muted transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-osv-bg border border-white/10 rounded-lg shadow-2xl max-h-64 overflow-y-auto">
+          {options.map((opt) => (
+            <div
+              key={opt.label}
+              className={`flex items-center justify-between px-3 py-2.5 cursor-pointer transition-all text-sm ${
+                value === opt.label
+                  ? 'bg-osv-accent/10 text-osv-accent'
+                  : 'text-osv-white/80 hover:bg-white/5'
+              }`}
+            >
+              <span
+                className="flex-1 truncate"
+                onClick={() => { onChange(opt.label); setOpen(false); setActiveHint(null); }}
+              >
+                {opt.label}
+              </span>
+              {opt.hint && (
+                <span className="relative ml-2 shrink-0">
+                  <button
+                    type="button"
+                    onMouseEnter={() => setActiveHint(opt.label)}
+                    onMouseLeave={() => setActiveHint(null)}
+                    onClick={(e) => { e.stopPropagation(); setActiveHint(v => v === opt.label ? null : opt.label); }}
+                    className="w-4 h-4 rounded-full border border-white/20 text-osv-muted hover:border-osv-accent/50 hover:text-osv-accent flex items-center justify-center transition-all text-[9px] font-bold leading-none focus:outline-none"
+                    aria-label={`Info about ${opt.label}`}
+                  >
+                    ?
+                  </button>
+                  {activeHint === opt.label && (
+                    <div className="absolute z-[60] right-6 top-1/2 -translate-y-1/2 w-56 bg-osv-bg border border-white/10 shadow-xl rounded-lg p-3 text-xs text-osv-white/80 leading-relaxed font-sans pointer-events-none">
+                      <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[6px] border-l-white/10"></div>
+                      {opt.hint}
+                    </div>
+                  )}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
