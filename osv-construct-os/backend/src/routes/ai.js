@@ -246,6 +246,95 @@ router.post('/generate-quote', async (req, res) => {
     }
 });
 
+router.post('/analyze-scope', async (req, res) => {
+    try {
+        const { photos, job_type, description, dimensions, site_notes } = req.body;
+
+        if (!photos || !Array.isArray(photos) || photos.length < 3) {
+            return res.status(400).json({ error: 'A minimum of 3 site photos is required for scope analysis.' });
+        }
+        if (photos.length > 5) {
+            return res.status(400).json({ error: 'A maximum of 5 photos is allowed.' });
+        }
+
+        if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY === 'dummy_key_for_now') {
+            return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env to use OSV Vision AI.' });
+        }
+
+        const systemPrompt = `You are a master construction estimator for Build With OSV, a Melbourne-based trades business specialising in fencing, decking, retaining walls, pergolas, and landscaping.
+
+You are receiving 3-5 site photos with user-provided descriptions, plus optional manual scope fields. Your job:
+
+1. ANALYZE every photo. For each one, determine whether it is a site photo, architectural blueprint, or hand-drawn sketch. Extract all relevant construction details — measurements, materials, conditions, access issues, hazards, soil type, existing structures, and anything that affects scope or pricing.
+
+2. SYNTHESIZE all visual evidence with the user's manual scope fields to produce an enhanced, professional scope.
+
+3. IDENTIFY GAPS — if the photos are missing critical angles or details needed for accurate quoting, specify exactly what additional photos are needed (maximum 2). Only request additional photos when genuinely necessary; if the provided photos are comprehensive, return an empty array.
+
+Return ONLY valid JSON in this exact format, with NO markdown formatting:
+{
+  "enhanced_scope": {
+    "job_type": "Fencing|Decking|Retaining Wall|Pergola|Landscaping|General Construction",
+    "dimensions": "Most accurate dimensions combining photo analysis and user input",
+    "description": "Comprehensive professional scope description synthesised from all visual evidence and user input",
+    "site_notes": "All identified hazards, access constraints, soil conditions, structural observations"
+  },
+  "photo_analysis": {
+    "summary": "2-3 sentence overview of what you observed across all photos",
+    "per_photo": [
+      { "index": 0, "type": "site_photo|blueprint|sketch", "observations": "Key details extracted from this specific image" }
+    ]
+  },
+  "additional_images_needed": [
+    { "title": "Short title for the photo needed", "description": "What to photograph and from what angle", "reason": "Why this photo is critical for accurate quoting" }
+  ]
+}`;
+
+        const content = [];
+
+        photos.forEach((photo, idx) => {
+            const parsed = parseBase64Image(photo.image);
+            if (parsed) {
+                content.push({
+                    type: "image",
+                    source: { type: "base64", media_type: parsed.media_type, data: parsed.data }
+                });
+                content.push({
+                    type: "text",
+                    text: `Photo ${idx + 1} — User notes: ${photo.description || 'No description provided'}`
+                });
+            }
+        });
+
+        let scopeText = `\n--- Manual Scope Fields ---\nJob Type: ${job_type || 'Not specified'}\nDimensions: ${dimensions || 'Not specified'}\nDescription: ${description || 'Not specified'}\nSite Notes: ${site_notes || 'Not specified'}\n\nAnalyze every photo above in conjunction with these scope fields. Produce the enhanced scope JSON.`;
+        content.push({ type: "text", text: scopeText });
+
+        const msg = await anthropic.messages.create({
+            model: "anthropic/claude-sonnet-4.6",
+            max_tokens: 2000,
+            temperature: 0.15,
+            system: systemPrompt,
+            messages: [{ role: "user", content }]
+        });
+
+        let rawResponse = msg.content[0].text;
+        rawResponse = rawResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        let result;
+        try {
+            result = JSON.parse(rawResponse);
+        } catch (e) {
+            console.error("Analyze-scope JSON parse error. Raw:", rawResponse);
+            return res.status(500).json({ error: 'AI returned invalid JSON during scope analysis.' });
+        }
+
+        res.json({ success: true, data: result });
+    } catch (err) {
+        console.error("Analyze Scope Error:", err);
+        res.status(500).json({ error: 'Failed to analyze photos and scope.' });
+    }
+});
+
 router.post('/analyze-blueprint', async (req, res) => {
     try {
         const { image } = req.body;
@@ -270,7 +359,7 @@ router.post('/analyze-blueprint', async (req, res) => {
         const msg = await anthropic.messages.create({
             model: "anthropic/claude-sonnet-4.6",
             max_tokens: 1500,
-            temperature: 0.1, // Strict determinism for scope extraction
+            temperature: 0.1,
             system: systemPrompt,
             messages: [{
                 role: "user",
