@@ -34,6 +34,27 @@ function parseBase64Image(dataUrl) {
     };
 }
 
+function formatScopeForAI(body) {
+    const { job_type, subcategory, scope, description, site_notes, dimensions } = body;
+    let text = `Job Type: ${job_type || 'Not specified'}`;
+    if (subcategory) text += `\nSubcategory: ${subcategory}`;
+    if (dimensions) text += `\nDimensions: ${dimensions}`;
+    if (scope && typeof scope === 'object') {
+        text += '\n\n--- Trade-Specific Scope Details ---';
+        for (const [key, value] of Object.entries(scope)) {
+            if (value === '' || value === null || value === undefined) continue;
+            if (Array.isArray(value) && value.length === 0) continue;
+            if (value === false) continue;
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const display = Array.isArray(value) ? value.join(', ') : value === true ? 'Yes' : String(value);
+            text += `\n${label}: ${display}`;
+        }
+    }
+    if (description) text += `\n\nDescription: ${description}`;
+    if (site_notes) text += `\nSite Notes: ${site_notes}`;
+    return text;
+}
+
 const SYSTEM_PROMPT = `You are a master construction estimator for Build With OSV, a Melbourne-based trades business.
 Generate a highly detailed and hyper-realistic quote based on the job type, description, dimensions, and site notes provided. 
 Break items down into Labour, Materials, and Disposal.
@@ -68,7 +89,7 @@ Return ONLY valid JSON in this exact format:
         const userPrompt = `Job Type: ${job_type}\nDimensions: ${dimensions}\nDescription: ${description}\nSite Notes: ${site_notes}\nGenerate the required images JSON.`;
 
         const msg = await anthropic.messages.create({
-            model: "anthropic/claude-sonnet-4.6",
+            model: "openai/gpt-5.4",
             max_tokens: 1000,
             temperature: 0.2,
             system: systemPrompt,
@@ -88,13 +109,15 @@ Return ONLY valid JSON in this exact format:
 
 router.post('/qualifying-questions', async (req, res) => {
     try {
-        const { job_type, description, dimensions, site_notes, images } = req.body;
+        const { images } = req.body;
         
         if (process.env.OPENROUTER_API_KEY === 'dummy_key_for_now' || !process.env.OPENROUTER_API_KEY) {
             return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env with your valid key to use the live AI engine.' });
         }
 
-        const systemPrompt = `You are a master construction estimator. Review the job details and the provided site photos. Formulate 3 to 5 qualifying questions you still need answered by the client to provide a highly accurate and reliable quote. Ask about specific things you noticed in the photos or crucial details missing from the description.
+        const scopeFormatted = formatScopeForAI(req.body);
+
+        const systemPrompt = `You are a master construction estimator. Review the job details (including trade-specific scope fields) and the provided site photos. Formulate 3 to 5 qualifying questions you still need answered by the client to provide a highly accurate and reliable quote. Ask about specific things you noticed in the photos or crucial details missing from the scope.
 Return ONLY valid JSON in this exact format:
 {
   "questions": [
@@ -122,11 +145,11 @@ Return ONLY valid JSON in this exact format:
         
         content.push({
             type: "text",
-            text: `Job Type: ${job_type}\nDimensions: ${dimensions}\nDescription: ${description}\nSite Notes: ${site_notes}\nGenerate the qualifying questions JSON.`
+            text: `${scopeFormatted}\n\nGenerate the qualifying questions JSON.`
         });
 
         const msg = await anthropic.messages.create({
-            model: "anthropic/claude-sonnet-4.6",
+            model: "openai/gpt-5.4",
             max_tokens: 1000,
             temperature: 0.2,
             system: systemPrompt,
@@ -146,11 +169,13 @@ Return ONLY valid JSON in this exact format:
 
 router.post('/generate-quote', async (req, res) => {
     try {
-        const { job_type, description, dimensions, site_notes, force_manual_pricing, images, qa_responses } = req.body;
+        const { force_manual_pricing, images, qa_responses } = req.body;
         
         if (process.env.OPENROUTER_API_KEY === 'dummy_key_for_now' || !process.env.OPENROUTER_API_KEY) {
             return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env with your valid key to use the live AI engine.' });
         }
+
+        const scopeFormatted = formatScopeForAI(req.body);
 
         const content = [];
         if (images && Array.isArray(images)) {
@@ -169,19 +194,19 @@ router.post('/generate-quote', async (req, res) => {
             });
         }
         
-        let userPromptText = `Job Type: ${job_type}\nDimensions: ${dimensions}\nDescription: ${description}\nSite Notes: ${site_notes}\n`;
+        let userPromptText = scopeFormatted + '\n';
         if (qa_responses && qa_responses.length > 0) {
             userPromptText += "\nQualifying Questions & Answers:\n";
             qa_responses.forEach(qa => {
                 userPromptText += `Q: ${qa.question}\nA: ${qa.answer}\n`;
             });
         }
-        userPromptText += "\nGenerate the highly accurate final quote JSON incorporating the visual evidence and client answers provided.";
+        userPromptText += "\nGenerate the highly accurate final quote JSON incorporating the visual evidence, trade-specific scope details, and client answers provided.";
         
         content.push({ type: "text", text: userPromptText });
         
         let anthropicParams = {
-            model: "anthropic/claude-sonnet-4.6",
+            model: "openai/gpt-5.4",
             max_tokens: 2000,
             temperature: 0.2,
             system: SYSTEM_PROMPT,
@@ -248,7 +273,7 @@ router.post('/generate-quote', async (req, res) => {
 
 router.post('/analyze-scope', async (req, res) => {
     try {
-        const { photos, job_type, description, dimensions, site_notes } = req.body;
+        const { photos } = req.body;
 
         if (!photos || !Array.isArray(photos) || photos.length < 3) {
             return res.status(400).json({ error: 'A minimum of 3 site photos is required for scope analysis.' });
@@ -261,22 +286,23 @@ router.post('/analyze-scope', async (req, res) => {
             return res.status(500).json({ error: 'Please update OPENROUTER_API_KEY in backend/.env to use OSV Vision AI.' });
         }
 
-        const systemPrompt = `You are a master construction estimator for Build With OSV, a Melbourne-based trades business specialising in fencing, decking, retaining walls, pergolas, and landscaping.
+        const scopeFormatted = formatScopeForAI(req.body);
 
-You are receiving 3-5 site photos with user-provided descriptions, plus optional manual scope fields. Your job:
+        const systemPrompt = `You are a master construction estimator for Build With OSV, a Melbourne-based trades business covering 14 trade categories including fencing, decking, pergolas, landscaping, excavation, cladding, carpentry, painting, structural work, renovations, commercial fit-outs, property maintenance, 3D rendering, and project management.
+
+You are receiving 3-5 site photos with user-provided descriptions, plus structured scope details (job type, subcategory, and trade-specific fields). Your job:
 
 1. ANALYZE every photo. For each one, determine whether it is a site photo, architectural blueprint, or hand-drawn sketch. Extract all relevant construction details — measurements, materials, conditions, access issues, hazards, soil type, existing structures, and anything that affects scope or pricing.
 
-2. SYNTHESIZE all visual evidence with the user's manual scope fields to produce an enhanced, professional scope.
+2. SYNTHESIZE all visual evidence with the user's structured scope fields to produce an enhanced, professional scope.
 
 3. IDENTIFY GAPS — if the photos are missing critical angles or details needed for accurate quoting, specify exactly what additional photos are needed (maximum 2). Only request additional photos when genuinely necessary; if the provided photos are comprehensive, return an empty array.
 
 Return ONLY valid JSON in this exact format, with NO markdown formatting:
 {
   "enhanced_scope": {
-    "job_type": "Fencing|Decking|Retaining Wall|Pergola|Landscaping|General Construction",
-    "dimensions": "Most accurate dimensions combining photo analysis and user input",
-    "description": "Comprehensive professional scope description synthesised from all visual evidence and user input",
+    "job_type": "The most accurate job type label",
+    "description": "Comprehensive professional scope description synthesised from all visual evidence, trade-specific fields, and user input",
     "site_notes": "All identified hazards, access constraints, soil conditions, structural observations"
   },
   "photo_analysis": {
@@ -306,11 +332,10 @@ Return ONLY valid JSON in this exact format, with NO markdown formatting:
             }
         });
 
-        let scopeText = `\n--- Manual Scope Fields ---\nJob Type: ${job_type || 'Not specified'}\nDimensions: ${dimensions || 'Not specified'}\nDescription: ${description || 'Not specified'}\nSite Notes: ${site_notes || 'Not specified'}\n\nAnalyze every photo above in conjunction with these scope fields. Produce the enhanced scope JSON.`;
-        content.push({ type: "text", text: scopeText });
+        content.push({ type: "text", text: `\n--- Structured Scope ---\n${scopeFormatted}\n\nAnalyze every photo above in conjunction with these scope fields. Produce the enhanced scope JSON.` });
 
         const msg = await anthropic.messages.create({
-            model: "anthropic/claude-sonnet-4.6",
+            model: "openai/gpt-5.4",
             max_tokens: 2000,
             temperature: 0.15,
             system: systemPrompt,
@@ -357,7 +382,7 @@ router.post('/analyze-blueprint', async (req, res) => {
 }`;
 
         const msg = await anthropic.messages.create({
-            model: "anthropic/claude-sonnet-4.6",
+            model: "openai/gpt-5.4",
             max_tokens: 1500,
             temperature: 0.1,
             system: systemPrompt,

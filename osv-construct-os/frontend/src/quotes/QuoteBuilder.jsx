@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { JOB_TYPES, JOB_TYPE_KEYS, getDefaultScope } from './jobTypeConfig';
+import DynamicScopeForm from './DynamicScopeForm';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
 
@@ -8,10 +10,11 @@ export default function QuoteBuilder() {
 
   // Step 1: Photos + Scope
   const [photos, setPhotos] = useState([]); // [{ id, file, preview, base64, description }]
+  const [jobTypeKey, setJobTypeKey] = useState(JOB_TYPE_KEYS[0]);
+  const [subcategory, setSubcategory] = useState('');
+  const [scopeData, setScopeData] = useState(getDefaultScope(JOB_TYPE_KEYS[0]));
   const [formData, setFormData] = useState({
-    job_type: 'Fencing',
     description: '',
-    dimensions: '',
     site_notes: ''
   });
 
@@ -80,6 +83,30 @@ export default function QuoteBuilder() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const currentConfig = JOB_TYPES[jobTypeKey];
+
+  const handleJobTypeChange = (newKey) => {
+    setJobTypeKey(newKey);
+    setSubcategory('');
+    setScopeData(getDefaultScope(newKey));
+    if (scopeAnalyzed) {
+      setScopeAnalyzed(false);
+      setAnalysisResult(null);
+    }
+  };
+
+  const handleSubcategoryChange = (newSub) => {
+    setSubcategory(newSub);
+  };
+
+  const buildFullPayload = () => ({
+    job_type: currentConfig.label,
+    subcategory,
+    scope: scopeData,
+    description: formData.description,
+    site_notes: formData.site_notes
+  });
+
   // Step 1: Analyze all photos + scope
   const handleAnalyzeScope = async () => {
     setLoading(true);
@@ -87,19 +114,18 @@ export default function QuoteBuilder() {
     try {
       const payload = {
         photos: photos.map(p => ({ image: p.base64, description: p.description })),
-        ...formData
+        ...buildFullPayload()
       };
       const res = await axios.post(`${API_BASE}/api/ai/analyze-scope`, payload);
       const data = res.data.data;
 
       setAnalysisResult(data);
       if (data.enhanced_scope) {
-        setFormData({
-          job_type: data.enhanced_scope.job_type || formData.job_type,
-          dimensions: data.enhanced_scope.dimensions || formData.dimensions,
-          description: data.enhanced_scope.description || formData.description,
-          site_notes: data.enhanced_scope.site_notes || formData.site_notes
-        });
+        setFormData(prev => ({
+          ...prev,
+          description: data.enhanced_scope.description || prev.description,
+          site_notes: data.enhanced_scope.site_notes || prev.site_notes
+        }));
       }
       setAdditionalImages(data.additional_images_needed || []);
       setScopeAnalyzed(true);
@@ -146,7 +172,7 @@ export default function QuoteBuilder() {
     setError(null);
     try {
       const imagesArray = getAllImages();
-      const payload = { ...formData, images: imagesArray };
+      const payload = { ...buildFullPayload(), images: imagesArray };
       const res = await axios.post(`${API_BASE}/api/ai/qualifying-questions`, payload);
       setQualifyingQuestions(res.data.data.questions || []);
       setStep(3);
@@ -166,7 +192,7 @@ export default function QuoteBuilder() {
         question: q.text,
         answer: questionAnswers[q.id] || "No answer provided"
       }));
-      const payload = { ...formData, images: imagesArray, qa_responses: qaFormatted };
+      const payload = { ...buildFullPayload(), images: imagesArray, qa_responses: qaFormatted };
       const res = await axios.post(`${API_BASE}/api/ai/generate-quote`, payload);
       setQuoteResult(res.data.data);
       setStep(4);
@@ -180,7 +206,10 @@ export default function QuoteBuilder() {
     photos.forEach(p => { if (p.preview) URL.revokeObjectURL(p.preview); });
     setStep(1);
     setPhotos([]);
-    setFormData({ job_type: 'Fencing', description: '', dimensions: '', site_notes: '' });
+    setJobTypeKey(JOB_TYPE_KEYS[0]);
+    setSubcategory('');
+    setScopeData(getDefaultScope(JOB_TYPE_KEYS[0]));
+    setFormData({ description: '', site_notes: '' });
     setScopeAnalyzed(false);
     setAnalysisResult(null);
     setAdditionalImages([]);
@@ -309,39 +338,55 @@ export default function QuoteBuilder() {
             )}
           </div>
 
+          {/* Job Type */}
           <div>
             <label className={labelClass}>JOB TYPE</label>
             <select
-              value={formData.job_type}
-              onChange={e => setFormData({ ...formData, job_type: e.target.value })}
+              value={jobTypeKey}
+              onChange={e => handleJobTypeChange(e.target.value)}
               disabled={scopeAnalyzed}
               className={inputClass}
             >
-              <option>Fencing</option>
-              <option>Decking</option>
-              <option>Retaining Wall</option>
-              <option>Pergola</option>
-              <option>Landscaping</option>
-              <option>General Construction</option>
+              {JOB_TYPE_KEYS.map(key => (
+                <option key={key} value={key}>{JOB_TYPES[key].label}</option>
+              ))}
             </select>
           </div>
 
-          <div>
-            <label className={labelClass}>DIMENSIONS / SIZE</label>
-            <input
-              type="text"
-              placeholder="e.g. 20m long, 1.8m high"
-              value={formData.dimensions}
-              onChange={e => setFormData({ ...formData, dimensions: e.target.value })}
-              className={inputClass}
-            />
-          </div>
+          {/* Subcategory */}
+          {currentConfig && (
+            <div>
+              <label className={labelClass}>SUBCATEGORY</label>
+              <select
+                value={subcategory}
+                onChange={e => handleSubcategoryChange(e.target.value)}
+                disabled={scopeAnalyzed}
+                className={inputClass}
+              >
+                <option value="">Select a subcategory...</option>
+                {currentConfig.subcategories.map(sub => (
+                  <option key={sub} value={sub}>{sub}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
+          {/* Dynamic trade-specific fields */}
+          {currentConfig && (
+            <DynamicScopeForm
+              fields={currentConfig.scopeFields}
+              scope={scopeData}
+              onChange={setScopeData}
+              disabled={scopeAnalyzed}
+            />
+          )}
+
+          {/* Common fields */}
           <div>
             <label className={labelClass}>DESCRIPTION</label>
             <textarea
               rows={3}
-              placeholder="Describe the job requirements..."
+              placeholder="Describe the overall job requirements..."
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               className={`${inputClass} min-h-[80px] h-auto resize-none`}
@@ -352,7 +397,7 @@ export default function QuoteBuilder() {
             <label className={labelClass}>SITE NOTES / HAZARDS</label>
             <input
               type="text"
-              placeholder="e.g. Sloping block, hard rock"
+              placeholder="e.g. Sloping block, hard rock, tight access"
               value={formData.site_notes}
               onChange={e => setFormData({ ...formData, site_notes: e.target.value })}
               className={inputClass}
@@ -706,7 +751,7 @@ export default function QuoteBuilder() {
                     try {
                       const payload = {
                         client_name: "TBD Client",
-                        trade: formData.job_type,
+                        trade: currentConfig.label,
                         summary: quoteResult.scope_summary,
                         total_cost: quoteResult.financials.totalCost,
                         margin: quoteResult.financials.marginPct,
