@@ -152,6 +152,21 @@ export default function QuoteBuilder() {
 
       setAnalysisResult(data);
       if (data.enhanced_scope) {
+        const aiJobType = typeof data.enhanced_scope.job_type === 'string'
+          ? data.enhanced_scope.job_type.trim()
+          : '';
+        const matchedJobType = Object.entries(JOB_TYPES).find(
+          ([, config]) => config.label.toLowerCase() === aiJobType.toLowerCase()
+        );
+        const resolvedJobTypeKey = matchedJobType ? matchedJobType[0] : jobTypeKey;
+        const resolvedConfig = JOB_TYPES[resolvedJobTypeKey] || currentConfig;
+        const resolvedSubcatLabels = resolvedConfig.subcategories.map(s => s.label);
+        const resolvedScopeFieldKeys = new Set(resolvedConfig.scopeFields.map(f => f.key));
+
+        if (resolvedJobTypeKey !== jobTypeKey) {
+          setJobTypeKey(resolvedJobTypeKey);
+        }
+
         setFormData(prev => ({
           ...prev,
           description: data.enhanced_scope.description || prev.description,
@@ -159,22 +174,33 @@ export default function QuoteBuilder() {
         }));
 
         if (data.enhanced_scope.subcategory) {
-          const matchedSub = subcatLabels.find(
+          const matchedSub = resolvedSubcatLabels.find(
             s => s.toLowerCase() === data.enhanced_scope.subcategory.toLowerCase()
           );
-          if (matchedSub) setSubcategory(matchedSub);
+          if (matchedSub) {
+            setSubcategory(matchedSub);
+          } else if (resolvedJobTypeKey !== jobTypeKey) {
+            setSubcategory('');
+          }
+        } else if (resolvedJobTypeKey !== jobTypeKey) {
+          setSubcategory('');
         }
 
         if (data.enhanced_scope.scope_fields && typeof data.enhanced_scope.scope_fields === 'object') {
           setScopeData(prev => {
-            const merged = { ...prev };
+            const merged = resolvedJobTypeKey === jobTypeKey
+              ? { ...prev }
+              : getDefaultScope(resolvedJobTypeKey);
             for (const [key, value] of Object.entries(data.enhanced_scope.scope_fields)) {
+              if (!resolvedScopeFieldKeys.has(key)) continue;
               if (value !== null && value !== undefined && value !== '') {
                 merged[key] = value;
               }
             }
             return merged;
           });
+        } else if (resolvedJobTypeKey !== jobTypeKey) {
+          setScopeData(getDefaultScope(resolvedJobTypeKey));
         }
 
         setNeedsAttention(data.enhanced_scope.unfilled_fields || []);
@@ -379,6 +405,17 @@ export default function QuoteBuilder() {
           )}
         </div>
 
+        {/* Analyze CTA */}
+        {!scopeAnalyzed && (
+          <button
+            onClick={handleAnalyzeScope}
+            disabled={loading || photos.length < 3}
+            className={btnPrimary}
+          >
+            {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
+          </button>
+        )}
+
         {/* Scope Fields */}
         <div className="border-t border-white/5 pt-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
@@ -395,7 +432,6 @@ export default function QuoteBuilder() {
             <select
               value={jobTypeKey}
               onChange={e => handleJobTypeChange(e.target.value)}
-              disabled={scopeAnalyzed}
               className={inputClass}
             >
               {JOB_TYPE_KEYS.map(key => (
@@ -412,7 +448,6 @@ export default function QuoteBuilder() {
                 options={currentConfig.subcategories}
                 value={subcategory}
                 onChange={handleSubcategoryChange}
-                disabled={scopeAnalyzed}
               />
             </div>
           )}
@@ -429,7 +464,6 @@ export default function QuoteBuilder() {
                   setNeedsAttention(prev => prev.filter(k => !changedKeys.includes(k)));
                 }
               }}
-              disabled={scopeAnalyzed}
               attentionFields={needsAttention}
             />
           )}
@@ -460,16 +494,8 @@ export default function QuoteBuilder() {
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-auto pt-5 border-t border-white/10 shrink-0">
-        {!scopeAnalyzed ? (
-          <button
-            onClick={handleAnalyzeScope}
-            disabled={loading || photos.length < 3}
-            className={btnPrimary}
-          >
-            {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
-          </button>
-        ) : (
+      {scopeAnalyzed && (
+        <div className="mt-auto pt-5 border-t border-white/10 shrink-0">
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => { setScopeAnalyzed(false); setAnalysisResult(null); }}
@@ -486,8 +512,8 @@ export default function QuoteBuilder() {
               {loading ? 'Processing...' : additionalImages.length > 0 ? 'Continue → Photos' : 'Continue → Q&A'}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 
