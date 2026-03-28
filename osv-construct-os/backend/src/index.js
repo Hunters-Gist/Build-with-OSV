@@ -42,13 +42,6 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', db: db.open ? 'connected' : 'disconnected' });
 });
 
-// Serve built frontend static files
-const frontendDist = join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
-app.get('/{*path}', (_req, res) => {
-    res.sendFile(join(frontendDist, 'index.html'));
-});
-
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`OSV OS Backend running on port ${PORT}`);
 });
