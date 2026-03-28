@@ -549,88 +549,12 @@ export default function QuoteBuilder() {
     <div className="flex flex-col h-full">
       <div className="space-y-5 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-4">
 
-        {/* Scope Fields */}
+        {/* Location fields (required before photos) */}
         <div className="border-t border-white/5 pt-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-1.5 rounded-full bg-osv-accent/60"></div>
-            <span className="text-xs font-mono text-osv-muted tracking-wide">SCOPE DETAILS</span>
-            {scopeAnalyzed && (
-              <span className="text-[10px] font-mono text-osv-green bg-osv-green/10 px-2 py-0.5 rounded border border-osv-green/20">AI ENHANCED</span>
-            )}
+            <span className="text-xs font-mono text-osv-muted tracking-wide">JOB LOCATION</span>
           </div>
-
-          {/* Job Type */}
-          <div>
-            <label className={labelClass}>JOB TYPE</label>
-            <select
-              value={jobTypeKey}
-              onChange={e => handleJobTypeChange(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select job type...</option>
-              {JOB_TYPE_KEYS.map(key => (
-                <option key={key} value={key}>{JOB_TYPES[key].label}</option>
-              ))}
-            </select>
-          </div>
-
-          {!currentConfig && (
-            <p className="text-xs text-osv-muted font-sans">
-              Choose a job type to reveal subcategory and scope fields.
-            </p>
-          )}
-
-          {/* Subcategory */}
-          {currentConfig && (
-            <div>
-              <label className={labelClass}>SUBCATEGORY</label>
-              <SubcategorySelect
-                options={currentConfig.subcategories}
-                value={subcategory}
-                onChange={handleSubcategoryChange}
-              />
-            </div>
-          )}
-
-          {/* Dynamic trade-specific fields */}
-          {currentConfig && (
-            <DynamicScopeForm
-              fields={currentConfig.scopeFields}
-              scope={scopeData}
-              onChange={(newScope) => {
-                setScopeData(newScope);
-                const changedKeys = Object.keys(newScope).filter(k => newScope[k] !== scopeData[k]);
-                if (changedKeys.length > 0) {
-                  setNeedsAttention(prev => prev.filter(k => !changedKeys.includes(k)));
-                }
-              }}
-              attentionFields={needsAttention}
-            />
-          )}
-
-          {/* Common fields */}
-          <div>
-            <label className={labelClass}>CLIENT NAME</label>
-            <input
-              type="text"
-              placeholder="Client full name"
-              value={formData.client_name}
-              onChange={e => setFormData({ ...formData, client_name: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>CLIENT EMAIL</label>
-            <input
-              type="email"
-              placeholder="client@example.com"
-              value={formData.client_email}
-              onChange={e => setFormData({ ...formData, client_email: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>SUBURB <span className="text-osv-accent">*</span></label>
@@ -658,28 +582,6 @@ export default function QuoteBuilder() {
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>DESCRIPTION</label>
-            <textarea
-              rows={3}
-              placeholder="Describe the overall job requirements..."
-              value={formData.description}
-              onChange={e => setFormData({ ...formData, description: e.target.value })}
-              className={`${inputClass} min-h-[80px] h-auto resize-none`}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>SITE NOTES / HAZARDS</label>
-            <input
-              type="text"
-              placeholder="e.g. Sloping block, hard rock, tight access"
-              value={formData.site_notes}
-              onChange={e => setFormData({ ...formData, site_notes: e.target.value })}
-              className={inputClass}
-            />
           </div>
         </div>
 
@@ -791,6 +693,112 @@ export default function QuoteBuilder() {
             {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
           </button>
         )}
+
+        {/* Scope Fields */}
+        <div className="border-t border-white/5 pt-5 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-osv-accent/60"></div>
+            <span className="text-xs font-mono text-osv-muted tracking-wide">SCOPE DETAILS</span>
+            {scopeAnalyzed && (
+              <span className="text-[10px] font-mono text-osv-green bg-osv-green/10 px-2 py-0.5 rounded border border-osv-green/20">AI ENHANCED</span>
+            )}
+          </div>
+
+          {/* Job Type */}
+          <div>
+            <label className={labelClass}>JOB TYPE</label>
+            <select
+              value={jobTypeKey}
+              onChange={e => handleJobTypeChange(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select job type...</option>
+              {JOB_TYPE_KEYS.map(key => (
+                <option key={key} value={key}>{JOB_TYPES[key].label}</option>
+              ))}
+            </select>
+          </div>
+
+          {!currentConfig && (
+            <p className="text-xs text-osv-muted font-sans">
+              Choose a job type to reveal subcategory and scope fields.
+            </p>
+          )}
+
+          {/* Subcategory */}
+          {currentConfig && (
+            <div>
+              <label className={labelClass}>SUBCATEGORY</label>
+              <SubcategorySelect
+                options={currentConfig.subcategories}
+                value={subcategory}
+                onChange={handleSubcategoryChange}
+              />
+            </div>
+          )}
+
+          {/* Dynamic trade-specific fields */}
+          {currentConfig && (
+            <DynamicScopeForm
+              fields={currentConfig.scopeFields}
+              scope={scopeData}
+              onChange={(newScope) => {
+                setScopeData(newScope);
+                const changedKeys = Object.keys(newScope).filter(k => newScope[k] !== scopeData[k]);
+                if (changedKeys.length > 0) {
+                  setNeedsAttention(prev => prev.filter(k => !changedKeys.includes(k)));
+                }
+              }}
+              attentionFields={needsAttention}
+            />
+          )}
+
+          {/* Common fields */}
+          <div>
+            <label className={labelClass}>CLIENT NAME</label>
+            <input
+              type="text"
+              placeholder="Client full name"
+              value={formData.client_name}
+              onChange={e => setFormData({ ...formData, client_name: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>CLIENT EMAIL</label>
+            <input
+              type="email"
+              placeholder="client@example.com"
+              value={formData.client_email}
+              onChange={e => setFormData({ ...formData, client_email: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>DESCRIPTION</label>
+            <textarea
+              rows={3}
+              placeholder="Describe the overall job requirements..."
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              className={`${inputClass} min-h-[80px] h-auto resize-none`}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>SITE NOTES / HAZARDS</label>
+            <input
+              type="text"
+              placeholder="e.g. Sloping block, hard rock, tight access"
+              value={formData.site_notes}
+              onChange={e => setFormData({ ...formData, site_notes: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
       </div>
 
       {/* Action Buttons */}
