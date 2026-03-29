@@ -1,12 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { JOB_TYPES, JOB_TYPE_KEYS, getDefaultScope } from './jobTypeConfig';
 import DynamicScopeForm, { SubcategorySelect } from './DynamicScopeForm';
 import apiClient from '../lib/apiClient';
 import { buildReauthPath, isAuthError, readAccessToken, sanitizeNextPath } from '../auth/session';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
 
 export default function QuoteBuilder() {
   const navigate = useNavigate();
@@ -236,7 +233,7 @@ export default function QuoteBuilder() {
         ...buildFullPayload(),
         job_catalog: jobCatalog
       };
-      const classifyRes = await axios.post(`${API_BASE}/api/ai/classify-scope`, classifyPayload);
+      const classifyRes = await apiClient.post('/api/ai/classify-scope', classifyPayload);
       const classified = classifyRes.data?.data || {};
 
       const resolvedJobTypeKey = resolveJobTypeKey(classified.job_type, jobTypeKey);
@@ -261,7 +258,7 @@ export default function QuoteBuilder() {
         scope_field_schema: resolvedScopeSchema,
         subcategory_options: resolvedSubcategoryOptions
       };
-      const analyzeRes = await axios.post(`${API_BASE}/api/ai/analyze-scope`, analyzePayload);
+      const analyzeRes = await apiClient.post('/api/ai/analyze-scope', analyzePayload);
       const data = analyzeRes.data?.data || {};
       const enhancedScope = data.enhanced_scope || {};
       const validScopeFieldKeys = new Set(resolvedConfig.scopeFields.map(f => f.key));
@@ -300,6 +297,12 @@ export default function QuoteBuilder() {
       setAdditionalImages(data.additional_images_needed || []);
       setScopeAnalyzed(true);
     } catch (err) {
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to analyze photos and scope.');
     }
     setLoading(false);
@@ -345,10 +348,16 @@ export default function QuoteBuilder() {
     try {
       const imagesArray = getAllImages();
       const payload = { ...buildFullPayload(), images: imagesArray };
-      const res = await axios.post(`${API_BASE}/api/ai/qualifying-questions`, payload);
+      const res = await apiClient.post('/api/ai/qualifying-questions', payload);
       setQualifyingQuestions(res.data.data.questions || []);
       setStep(3);
     } catch (err) {
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to generate qualifying questions.');
     }
     setLoading(false);
@@ -383,11 +392,17 @@ export default function QuoteBuilder() {
     setError(null);
     try {
       const payload = buildQuoteGenerationPayload({ forceRefreshLivePricing: false });
-      const res = await axios.post(`${API_BASE}/api/ai/generate-quote`, payload);
+      const res = await apiClient.post('/api/ai/generate-quote', payload);
       setQuoteResult(res.data.data);
       setLivePricingRefreshMeta(null);
       setStep(4);
     } catch (err) {
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to generate quote.');
     }
     setLoading(false);
@@ -404,7 +419,7 @@ export default function QuoteBuilder() {
     const startedAt = Date.now();
     try {
       const payload = buildQuoteGenerationPayload({ forceRefreshLivePricing: true });
-      const res = await axios.post(`${API_BASE}/api/ai/generate-quote`, payload);
+      const res = await apiClient.post('/api/ai/generate-quote', payload);
       setQuoteResult(res.data.data);
       const durationMs = Date.now() - startedAt;
       setLivePricingRefreshMeta({
@@ -413,6 +428,12 @@ export default function QuoteBuilder() {
         sourceDurationMs: res.data?.data?.pricing_audit?.livePricingDurationMs ?? null
       });
     } catch (err) {
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to refresh live prices.');
     }
     setLoading(false);
