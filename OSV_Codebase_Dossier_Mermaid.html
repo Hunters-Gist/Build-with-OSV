@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSV Codebase Dossier (Mermaid Rendered)</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0c10;
+      --panel: #12141a;
+      --border: #232734;
+      --text: #e8ecf1;
+      --muted: #a6b0bf;
+      --accent: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 20% -10%, #1b2130 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 12, 16, 0.85);
+      backdrop-filter: blur(6px);
+      padding: 0.9rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .btn {
+      background: #1a2030;
+      color: #dbe3f4;
+      border: 1px solid #37405a;
+      border-radius: 8px;
+      padding: 0.38rem 0.62rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      border-color: #4f5d82;
+      background: #202940;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.55rem;
+      border: 1px solid #3a4153;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      letter-spacing: 0.03em;
+    }
+
+    .dot {
+      width: 0.42rem;
+      height: 0.42rem;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 1.25rem auto 3rem;
+      padding: 0 1rem;
+    }
+
+    #status {
+      margin: 0.2rem 0 1rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    #content {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+
+    #content h1, #content h2, #content h3 {
+      line-height: 1.25;
+      margin-top: 1.4em;
+      margin-bottom: 0.55em;
+    }
+
+    #content h1:first-child { margin-top: 0; }
+    #content h1 { font-size: 1.75rem; }
+    #content h2 { font-size: 1.35rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+    #content h3 { font-size: 1.1rem; color: #dbe3f1; }
+
+    #content p, #content li, #content table { color: var(--text); }
+    #content code {
+      background: #1b2030;
+      border: 1px solid #30384c;
+      padding: 0.08rem 0.34rem;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    #content pre {
+      background: #0f1320;
+      border: 1px solid #263049;
+      border-radius: 10px;
+      padding: 0.85rem;
+      overflow: auto;
+    }
+
+    #content pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    #content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.9rem 0;
+      font-size: 0.94rem;
+    }
+
+    #content th, #content td {
+      border: 1px solid #2c3446;
+      padding: 0.5rem 0.55rem;
+      vertical-align: top;
+    }
+
+    #content th {
+      background: #171d2b;
+      color: #dfe7f4;
+      text-align: left;
+    }
+
+    .mermaid {
+      background: #0f1320;
+      border: 1px solid #263049;
+      border-radius: 10px;
+      padding: 0.55rem;
+      margin: 1rem 0;
+      overflow: auto;
+    }
+
+    .note {
+      margin-top: 1rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      header, #status, .note {
+        display: none !important;
+      }
+
+      main {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      #content {
+        border: 0;
+        border-radius: 0;
+        background: #fff;
+        color: #000;
+        padding: 0.6in;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>OSV Technical Dossier</strong>
+    <span class="badge"><span class="dot"></span> Mermaid Rendered</span>
+    <span class="badge">Source: <code>OSV_Codebase_Dossier.md</code></span>
+    <span class="spacer"></span>
+    <input id="mdFileInput" type="file" accept=".md,text/markdown,text/plain" style="display:none;" />
+    <button class="btn" id="loadLocalBtn" type="button">Load Local .md</button>
+    <button class="btn" id="printBtn" type="button">Print / Save PDF</button>
+  </header>
+
+  <main>
+    <div id="status">Loading markdown and rendering diagrams...</div>
+    <article id="content"></article>
+    <div class="note">
+      If this page is opened via <code>file://</code>, click <code>Load Local .md</code> and select
+      <code>OSV_Codebase_Dossier.md</code>. You can also run a local server
+      (<code>python3 -m http.server</code>) and open from <code>http://localhost:8000</code>.
+    </div>
+  </main>
+
+  <script type="module">
+    import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+    const statusEl = document.getElementById("status");
+    const contentEl = document.getElementById("content");
+    const mdFileInput = document.getElementById("mdFileInput");
+    const loadLocalBtn = document.getElementById("loadLocalBtn");
+    const printBtn = document.getElementById("printBtn");
+    const sourceFile = "./OSV_Codebase_Dossier.md";
+
+    function renderMermaidBlocks(root) {
+      const blocks = Array.from(root.querySelectorAll("pre > code.language-mermaid"));
+      blocks.forEach((codeBlock) => {
+        const pre = codeBlock.parentElement;
+        const wrapper = document.createElement("div");
+        wrapper.className = "mermaid";
+        wrapper.textContent = codeBlock.textContent || "";
+        pre.replaceWith(wrapper);
+      });
+    }
+
+    async function renderFromMarkdown(md) {
+      const html = marked.parse(md, { gfm: true, breaks: false });
+      contentEl.innerHTML = html;
+      renderMermaidBlocks(contentEl);
+
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "loose",
+        theme: "dark",
+        fontFamily: "Inter, system-ui, sans-serif"
+      });
+
+      await mermaid.run({ querySelector: ".mermaid" });
+    }
+
+    async function loadAndRender() {
+      try {
+        const res = await fetch(sourceFile);
+        if (!res.ok) throw new Error(`Failed to fetch ${sourceFile} (${res.status})`);
+        const md = await res.text();
+        await renderFromMarkdown(md);
+        statusEl.textContent = "Loaded successfully. Mermaid diagrams are rendered.";
+      } catch (err) {
+        statusEl.textContent = `Could not auto-load dossier (${err.message}). Use "Load Local .md".`;
+        statusEl.style.color = "#fca5a5";
+      }
+    }
+
+    loadLocalBtn.addEventListener("click", () => mdFileInput.click());
+
+    mdFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const md = await file.text();
+        await renderFromMarkdown(md);
+        statusEl.style.color = "#a6b0bf";
+        statusEl.textContent = `Loaded from local file: ${file.name}`;
+      } catch (err) {
+        statusEl.style.color = "#fca5a5";
+        statusEl.textContent = `Failed to load local file: ${err.message}`;
+      }
+    });
+
+    printBtn.addEventListener("click", () => window.print());
+
+    loadAndRender();
+  </script>
+</body>
+</html>
+

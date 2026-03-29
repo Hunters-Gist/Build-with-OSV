@@ -1,0 +1,120 @@
+{
+  "deck_restoration_pricing": [
+    {
+      "category": "prep",
+      "description": "Pressure wash / deck clean",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 10,
+      "sell_rate_ex_gst": 12,
+      "notes": "Light clean prior to sanding and coating"
+    },
+    {
+      "category": "fixings",
+      "description": "Punch down nails / tighten screws",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 6,
+      "sell_rate_ex_gst": 8,
+      "notes": "Minor fastener prep only"
+    },
+    {
+      "category": "sanding_light",
+      "description": "Light machine sand",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 18,
+      "sell_rate_ex_gst": 22,
+      "notes": "Weathered but sound decking"
+    },
+    {
+      "category": "sanding_heavy",
+      "description": "Heavy sand / strip back",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 28,
+      "sell_rate_ex_gst": 35,
+      "notes": "For badly weathered or coated decks"
+    },
+    {
+      "category": "coat_2",
+      "description": "2 coats decking oil / sealer",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 28,
+      "sell_rate_ex_gst": 34,
+      "notes": "Premium water-based product"
+    },
+    {
+      "category": "coat_3",
+      "description": "3 coats decking oil / sealer",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 36,
+      "sell_rate_ex_gst": 46,
+      "notes": "For highly exposed decks"
+    },
+    {
+      "category": "consumables",
+      "description": "Masking, tape, rags, clean-up",
+      "unit": "$/job",
+      "base_rate_ex_gst": 95,
+      "sell_rate_ex_gst": 120,
+      "notes": "Flat charge per job"
+    },
+    {
+      "category": "small_job",
+      "description": "Minimum charge",
+      "unit": "$/job",
+      "base_rate_ex_gst": 650,
+      "sell_rate_ex_gst": 850,
+      "notes": "Apply if total area under 15m\u00b2"
+    },
+    {
+      "category": "board_replace",
+      "description": "Replace damaged board",
+      "unit": "$/board",
+      "base_rate_ex_gst": 65,
+      "sell_rate_ex_gst": 85,
+      "notes": "Labour only, board additional"
+    },
+    {
+      "category": "board_replace_supply",
+      "description": "Replace damaged board incl supply",
+      "unit": "$/board",
+      "base_rate_ex_gst": 95,
+      "sell_rate_ex_gst": 140,
+      "notes": "Typical hardwood board"
+    },
+    {
+      "category": "cladding_restore",
+      "description": "Restore vertical timber cladding",
+      "unit": "$/m\u00b2",
+      "base_rate_ex_gst": 55,
+      "sell_rate_ex_gst": 70,
+      "notes": "Includes sand and 2 coats"
+    },
+    {
+      "category": "stairs",
+      "description": "Deck stairs sand and reseal",
+      "unit": "$/step",
+      "base_rate_ex_gst": 35,
+      "sell_rate_ex_gst": 45,
+      "notes": "Per tread/riser set"
+    },
+    {
+      "category": "handrail",
+      "description": "Sand and reseal handrail",
+      "unit": "$/lm",
+      "base_rate_ex_gst": 18,
+      "sell_rate_ex_gst": 25,
+      "notes": "Linear metre"
+    }
+  ],
+  "bundles": [
+    {
+      "name": "Standard Restoration",
+      "formula": "(prep + fixings + sanding_light + coat_2) * area + consumables",
+      "typical_rate_per_m2_ex_gst": 76
+    },
+    {
+      "name": "Heavy Restoration",
+      "formula": "(prep + fixings + sanding_heavy + coat_3) * area + consumables",
+      "typical_rate_per_m2_ex_gst": 101
+    }
+  ]
+}

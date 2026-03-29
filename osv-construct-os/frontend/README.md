@@ -1,16 +1,66 @@
-# React + Vite
+# OSV Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+The frontend now supports both quote generation and post-generation back-office improvement workflows.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Key Routes
 
-## React Compiler
+- `/quotes/new`
+  - AI quote generation flow (`QuoteBuilder`)
+  - save draft + issue to client portal
+  - quick link to back-office editor after save
+- `/quotes/:quoteRef/edit`
+  - back-office quote revision workbench (`QuoteEditor`)
+  - line-item editing + summary edits
+  - mandatory edit reason before revision save
+  - revision history timeline (newest first)
+- `/client/quote/:quoteId`
+  - client-facing portal for review/acceptance/payment (pricing edits remain back-office only)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Back-Office Revision Workflow
 
-## Expanding the ESLint configuration
+1. Open quote from dashboard (`Edit` link in recent quotes) or from QuoteBuilder post-save action.
+2. Update summary and line items.
+3. Select required `edit_reason`.
+4. Save revision.
+5. Revision is persisted and visible in the local revision history panel.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The revision UI talks to:
+
+- `GET /api/quotes/:id`
+- `POST /api/quotes/:id/revisions`
+- `GET /api/quotes/:id/revisions`
+- `GET /api/quotes/:id/revisions/:revisionId/deltas`
+- `GET /api/quotes/:id/revisions/deltas.csv`
+
+## Learning-Loop UX Notes
+
+- Revision save confirmation includes revision id and delta count.
+- Revision history panel displays:
+  - reason and notes
+  - editor identity
+  - before/after totals
+  - net delta
+  - captured delta item count
+  - expandable line-level change detail via `View Delta Details`
+  - one-click `Export CSV` for all revision deltas on that quote
+
+## OSV Quote Builder Debug Flags
+
+- Internal pricing debug panel is shown automatically in local dev (`import.meta.env.DEV`).
+- To force-enable it in non-dev environments, set:
+  - `VITE_SHOW_PRICING_DEBUG=true`
+- The panel appears on material line items in Quote Builder and shows:
+  - supplier attempts
+  - source/failure reasons
+  - a `Copy Debug JSON` action for quick troubleshooting
+
+## Commands
+
+- Start dev server:
+  - `npm run dev`
+- Lint:
+  - `npm run lint`
+- Build:
+  - `npm run build`

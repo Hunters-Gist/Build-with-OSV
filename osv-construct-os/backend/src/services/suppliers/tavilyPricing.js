@@ -10,9 +10,9 @@ function nowMs() {
 
 function extractFirstPrice(text) {
     const source = String(text || '');
-    const matches = Array.from(source.matchAll(/\$(\d+(?:\.\d+)?)/g));
+    const matches = Array.from(source.matchAll(/(?:AU?\$|\$)\s?(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)/gi));
     if (!matches.length) return null;
-    const amount = Number(matches[0][1]);
+    const amount = Number(String(matches[0][1]).replace(/,/g, ''));
     if (!Number.isFinite(amount)) return null;
     return amount;
 }
@@ -24,6 +24,15 @@ function inferUnit(text) {
     if (source.includes('/ea') || source.includes('each')) return 'ea';
     if (source.includes('/bag')) return 'bag';
     return null;
+}
+
+function normalizeDomain(website) {
+    const raw = String(website || '').trim().toLowerCase();
+    if (!raw) return null;
+    return raw
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/.*$/, '');
 }
 
 function sleep(ms) {
@@ -85,24 +94,30 @@ export async function getLivePriceFromTavily({ supplierName, website, materialQu
     const cached = forceRefresh ? null : getCacheEntry(cacheKey);
     if (!forceRefresh && cached) {
         return {
+            ok: true,
             unitPrice: cached.unit_price,
             unit: cached.unit,
             source: 'tavily_cache',
             sourceUrl: cached.source_url,
-            cacheHit: true
+            cacheHit: true,
+            failureReason: null
         };
     }
 
     const apiKey = process.env.TAVILY_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+        return {
+            ok: false,
+            failureReason: 'missing_tavily_api_key'
+        };
+    }
 
-    const query = [
-        supplierName,
-        materialQuery,
-        locationHint ? `near ${locationHint}` : null,
-        website ? `site:${website.replace(/^https?:\/\//, '').replace(/\/$/, '')}` : null,
-        'price australia'
-    ].filter(Boolean).join(' ');
+    const supplierDomain = normalizeDomain(website);
+    const compactQuery = [supplierName, materialQuery, locationHint ? `near ${locationHint}` : null, 'price australia']
+        .filter(Boolean)
+        .join(' ');
+
+    const query = supplierDomain ? `${compactQuery} site:${supplierDomain}` : compactQuery;
 
     let res;
     try {
@@ -121,10 +136,18 @@ export async function getLivePriceFromTavily({ supplierName, website, materialQu
             })
         }, 2);
     } catch (_) {
-        return null;
+        return {
+            ok: false,
+            failureReason: 'tavily_request_failed'
+        };
     }
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+        return {
+            ok: false,
+            failureReason: `tavily_http_${res.status}`
+        };
+    }
     const data = await res.json();
     const results = Array.isArray(data?.results) ? data.results : [];
     const answer = data?.answer || '';
@@ -144,7 +167,12 @@ export async function getLivePriceFromTavily({ supplierName, website, materialQu
 
     if (!chosen) {
         const fallbackPrice = extractFirstPrice(answer);
-        if (!fallbackPrice) return null;
+        if (!fallbackPrice) {
+            return {
+                ok: false,
+                failureReason: 'no_price_in_results'
+            };
+        }
         chosen = {
             unitPrice: fallbackPrice,
             unit: inferUnit(answer),
@@ -163,9 +191,11 @@ export async function getLivePriceFromTavily({ supplierName, website, materialQu
     });
 
     return {
+        ok: true,
         ...chosen,
         source: 'tavily_live',
-        cacheHit: false
+        cacheHit: false,
+        failureReason: null
     };
 }
 

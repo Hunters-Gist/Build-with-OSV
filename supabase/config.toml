@@ -1,0 +1,9 @@
+project_id = "ueqyxuutuxfifpqixbqu"
+
+# This repository is linked to the Supabase project "OSV".
+# Project ref: ueqyxuutuxfifpqixbqu
+# Region: ap-northeast-1
+#
+# If you install the Supabase CLI locally, you can complete a full init/link flow with:
+#   supabase init
+#   SUPABASE_DB_PASSWORD=... supabase link --project-ref ueqyxuutuxfifpqixbqu

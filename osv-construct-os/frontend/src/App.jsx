@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Pipeline from './leads/Pipeline.jsx';
 import QuoteBuilder from './quotes/QuoteBuilder.jsx';
+import QuoteEditor from './quotes/QuoteEditor.jsx';
 import AdminDashboard from './admin/AdminDashboard.jsx';
 import ClientPortal from './client/ClientPortal.jsx';
 import Dashboard from './dashboard/Dashboard.jsx';
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/quotes/new" element={<QuoteBuilder />} />
+        <Route path="/quotes/:quoteRef/edit" element={<QuoteEditor />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/jobs" element={<JobDashboard />} />
         <Route path="/client/quote/:quoteId" element={<ClientPortal />} />
