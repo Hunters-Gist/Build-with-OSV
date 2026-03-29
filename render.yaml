@@ -8,6 +8,7 @@ services:
     rootDir: osv-construct-os/backend
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
     disk:
       name: osv-data
       mountPath: /var/lib/osv-data
@@ -38,9 +39,9 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: FRONTEND_URL
-        value: https://osv-saa-s.vercel.app
+        value: https://build-with-osv.vercel.app
       - key: CORS_ALLOWED_ORIGINS
-        value: https://osv-saa-s.vercel.app,https://buildwithosv.com.au,https://www.buildwithosv.com.au,https://osv-construct-os.vercel.app
+        value: https://build-with-osv.vercel.app,https://buildwithosv.com.au,https://www.buildwithosv.com.au,https://osv-construct-os.vercel.app
       - key: ENFORCE_ADMIN_AUTH
         value: "true"
       - key: ENFORCE_PORTAL_TOKEN
