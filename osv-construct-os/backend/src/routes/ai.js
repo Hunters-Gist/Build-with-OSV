@@ -21,6 +21,15 @@ const anthropic = new Anthropic({
     }
 });
 
+function extractAiProviderError(err) {
+    const status = err?.status || err?.statusCode || err?.response?.status;
+    const directMessage = err?.error?.message || err?.response?.data?.error?.message || err?.response?.data?.error || err?.message;
+
+    if (!directMessage) return null;
+    if (status) return `AI provider error (${status}): ${String(directMessage)}`;
+    return `AI provider error: ${String(directMessage)}`;
+}
+
 function getMargin(riskLevel) {
     const risk = (riskLevel || '').toLowerCase();
     if (risk.includes('low')) return 0.20;
@@ -562,6 +571,10 @@ Return ONLY valid JSON in this exact format, with NO markdown formatting:
         res.json({ success: true, data: result });
     } catch (err) {
         console.error("Analyze Scope Error:", err);
+        const providerError = extractAiProviderError(err);
+        if (providerError) {
+            return res.status(502).json({ error: providerError });
+        }
         res.status(500).json({ error: 'Failed to analyze photos and scope.' });
     }
 });
