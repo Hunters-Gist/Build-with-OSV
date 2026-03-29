@@ -767,14 +767,31 @@ export default function QuoteBuilder() {
         </div>
 
         {/* Analyze CTA */}
-        {!scopeAnalyzed && currentConfig && (
-          <button
-            onClick={handleAnalyzeScope}
-            disabled={loading || photos.length < 3}
-            className={btnPrimary}
-          >
-            {loading ? 'Analyzing Photos & Scope...' : `Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
-          </button>
+        {!scopeAnalyzed && (
+          <div className="space-y-2">
+            <button
+              onClick={handleAnalyzeScope}
+              disabled={
+                loading
+                || photos.length < 3
+                || !currentConfig
+                || !formData.suburb?.trim()
+                || !formData.postcode?.trim()
+              }
+              className={btnPrimary}
+            >
+              {loading
+                ? 'Analyzing Photos & Scope...'
+                : !currentConfig
+                  ? 'Select Job Type to Enable Vision AI Analyze'
+                  : `Vision AI Analyze Scope (${photos.length} photo${photos.length !== 1 ? 's' : ''})`}
+            </button>
+            {!currentConfig && (
+              <p className="text-xs text-osv-muted font-sans">
+                Choose a job type below to enable the Vision AI analysis.
+              </p>
+            )}
+          </div>
         )}
 
         {/* Scope Fields */}
