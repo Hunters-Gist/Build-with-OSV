@@ -2,6 +2,14 @@ import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import db from '../db/index.js';
 import { applyLiveSupplierPricing } from '../services/suppliers/pricingEngine.js';
+import {
+    applyCalibrationToLineItems,
+    getActivePromptProfile,
+    getCalibrationPromptHints,
+    getCurrentProfileVersions
+} from '../services/quotes/calibrationService.js';
+import { incrementLearningMetric } from '../services/quotes/metricsService.js';
+import { getExternalPricingPromptHints } from '../services/quotes/externalPricingTrainingService.js';
 
 const router = express.Router();
 const anthropic = new Anthropic({
@@ -177,6 +185,9 @@ router.post('/generate-quote', async (req, res) => {
         }
 
         const scopeFormatted = formatScopeForAI(req.body);
+        const calibrationHints = getCalibrationPromptHints(db, req.body.job_type || '', { minSamples: 3, maxRows: 5 });
+        const externalPricingHints = getExternalPricingPromptHints(db, req.body.job_type || '', { maxMetrics: 8, maxBundles: 3 });
+        const promptProfile = getActivePromptProfile(db, req.body.job_type || '');
 
         const content = [];
         if (images && Array.isArray(images)) {
@@ -216,6 +227,15 @@ router.post('/generate-quote', async (req, res) => {
 
         if (!force_manual_pricing) {
             anthropicParams.system += `\nYou must act as if you have access to live Bunnings pricing. Add a 10% standard markup to material costs you estimate.`;
+        }
+        if (calibrationHints.systemText) {
+            anthropicParams.system += `\n\n${calibrationHints.systemText}`;
+        }
+        if (externalPricingHints.systemText) {
+            anthropicParams.system += `\n\n${externalPricingHints.systemText}`;
+        }
+        if (promptProfile?.profile_json?.system_append) {
+            anthropicParams.system += `\n\n${String(promptProfile.profile_json.system_append)}`;
         }
 
         const msg = await anthropic.messages.create(anthropicParams);
@@ -269,6 +289,19 @@ router.post('/generate-quote', async (req, res) => {
             };
         }
 
+        const calibrated = applyCalibrationToLineItems(
+            db,
+            req.body.job_type || '',
+            generatedQuote.line_items || [],
+            { allowMaterials: !!force_manual_pricing, minSamples: 3, maxPct: 0.12 }
+        );
+        generatedQuote.line_items = calibrated.lineItems;
+        livePricingAudit = {
+            ...(livePricingAudit || {}),
+            calibrationApplied: calibrated.appliedAdjustments,
+            calibrationSignalCount: calibrationHints.rows.length
+        };
+
         let subLabour = generatedQuote.line_items.filter(i => i.category === 'Labour').reduce((acc, i) => acc + i.total, 0);
         let matTotal = generatedQuote.line_items.filter(i => i.category === 'Materials' || i.category === 'Disposal').reduce((acc, i) => acc + i.total, 0);
         
@@ -287,12 +320,36 @@ router.post('/generate-quote', async (req, res) => {
 
         const gst = clientQuote * 0.10;
         const grandTotal = clientQuote + gst;
+        const currentVersions = getCurrentProfileVersions(db);
+        const learningContext = {
+            calibrationProfileVersion: Math.max(
+                Number(currentVersions.calibrationProfileVersion || 0),
+                Number(calibrated.profileVersion || 0),
+                Number(calibrationHints.profileVersion || 0)
+            ),
+            promptProfileVersion: Number(promptProfile?.version || currentVersions.promptProfileVersion || 0),
+            calibrationSignalCount: Number(calibrationHints.rows.length || 0),
+            calibrationAdjustmentsApplied: Number(calibrated.appliedAdjustments.length || 0),
+            importedPricingSignalsUsed: Number(externalPricingHints.rows.length || 0),
+            importedPricingBundlesUsed: Number(externalPricingHints.bundles.length || 0)
+        };
+        incrementLearningMetric(db, 'quote_generation_requests_total', 1);
+        incrementLearningMetric(db, 'calibration_signals_seen_total', learningContext.calibrationSignalCount);
+        incrementLearningMetric(db, 'calibration_adjustments_applied_total', learningContext.calibrationAdjustmentsApplied);
+        incrementLearningMetric(db, 'imported_pricing_signals_seen_total', learningContext.importedPricingSignalsUsed);
+        if (learningContext.calibrationProfileVersion > 0) {
+            incrementLearningMetric(db, `calibration_profile_version_${learningContext.calibrationProfileVersion}_uses`, 1);
+        }
+        if (learningContext.promptProfileVersion > 0) {
+            incrementLearningMetric(db, `prompt_profile_version_${learningContext.promptProfileVersion}_uses`, 1);
+        }
 
         res.status(200).json({
             success: true,
             data: {
                 ...generatedQuote,
                 pricing_audit: livePricingAudit,
+                learning_context: learningContext,
                 financials: {
                     totalCost,
                     marginPct,
@@ -307,6 +364,7 @@ router.post('/generate-quote', async (req, res) => {
         
     } catch (error) {
         console.error("AI API Error:", error);
+        incrementLearningMetric(db, 'quote_generation_errors_total', 1);
         res.status(500).json({ error: 'OpenRouter API failed. Please ensure your OPENROUTER_API_KEY is active in .env', details: error.message });
     }
 });

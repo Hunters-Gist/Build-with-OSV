@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
@@ -38,19 +38,154 @@ function jobTrackInfo(job) {
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [portalAuditEvents, setPortalAuditEvents] = useState([]);
+  const [securityAuditEvents, setSecurityAuditEvents] = useState([]);
+  const [securitySummary, setSecuritySummary] = useState(null);
+  const [portalAuditError, setPortalAuditError] = useState(null);
+  const [securityAuditError, setSecurityAuditError] = useState(null);
+  const [securitySummaryError, setSecuritySummaryError] = useState(null);
+  const [trainingStatus, setTrainingStatus] = useState(null);
+  const [trainingStatusError, setTrainingStatusError] = useState(null);
+  const [trainingImportMessage, setTrainingImportMessage] = useState('');
+  const [selectedTrainingFiles, setSelectedTrainingFiles] = useState([]);
+  const [trainingUploadMessage, setTrainingUploadMessage] = useState('');
+  const [trainingUploadImportRunning, setTrainingUploadImportRunning] = useState(false);
+  const [auditView, setAuditView] = useState('portal');
+  const [auditOutcomeFilter, setAuditOutcomeFilter] = useState('all');
+  const [auditWindowMs, setAuditWindowMs] = useState(24 * 60 * 60 * 1000);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [handoffLoadingId, setHandoffLoadingId] = useState(null);
 
-  const loadDashboard = () => {
-    axios.get(`${API}/api/dashboard`)
-      .then(res => { setData(res.data.data); setLoading(false); })
-      .catch(err => { console.error(err); setError('Failed to load dashboard'); setLoading(false); });
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setPortalAuditError(null);
+    setSecurityAuditError(null);
+    setSecuritySummaryError(null);
+    setTrainingStatusError(null);
+    try {
+      const now = Date.now();
+      const fromTs = now - auditWindowMs;
+      const auditFilterParams = {
+        limit: 8,
+        from: fromTs,
+        to: now
+      };
+      if (auditOutcomeFilter !== 'all') {
+        auditFilterParams.outcome = auditOutcomeFilter;
+      }
+
+      const [dashboardResult, portalAuditResult, securityAuditResult, securitySummaryResult, trainingStatusResult] = await Promise.allSettled([
+        axios.get(`${API}/api/dashboard`),
+        axios.get(`${API}/api/admin/portal-audit`, { params: auditFilterParams }),
+        axios.get(`${API}/api/admin/security-audit`, { params: auditFilterParams }),
+        axios.get(`${API}/api/admin/security-summary`),
+        axios.get(`${API}/api/admin/quote-training/status`)
+      ]);
+
+      if (dashboardResult.status === 'fulfilled') {
+        setData(dashboardResult.value.data.data);
+      } else {
+        console.error(dashboardResult.reason);
+        setError('Failed to load dashboard');
+      }
+
+      if (portalAuditResult.status === 'fulfilled') {
+        setPortalAuditEvents(portalAuditResult.value.data?.data || []);
+      } else {
+        console.error(portalAuditResult.reason);
+        setPortalAuditEvents([]);
+        setPortalAuditError('Portal audit unavailable');
+      }
+
+      if (securityAuditResult.status === 'fulfilled') {
+        setSecurityAuditEvents(securityAuditResult.value.data?.data || []);
+      } else {
+        console.error(securityAuditResult.reason);
+        setSecurityAuditEvents([]);
+        setSecurityAuditError('Security audit unavailable');
+      }
+
+      if (securitySummaryResult.status === 'fulfilled') {
+        setSecuritySummary(securitySummaryResult.value.data?.data || null);
+      } else {
+        console.error(securitySummaryResult.reason);
+        setSecuritySummary(null);
+        setSecuritySummaryError('Security summary unavailable');
+      }
+
+      if (trainingStatusResult.status === 'fulfilled') {
+        setTrainingStatus(trainingStatusResult.value.data?.data || null);
+      } else {
+        console.error(trainingStatusResult.reason);
+        setTrainingStatus(null);
+        setTrainingStatusError('Training status unavailable');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [auditOutcomeFilter, auditWindowMs]);
+
+  const toBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+
+  const handleTrainingFileSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedTrainingFiles(files);
+    setTrainingUploadMessage('');
+  };
+
+  const handleUploadAndImportTrainingFiles = async () => {
+    if (!selectedTrainingFiles.length) {
+      setTrainingUploadMessage('Select one or more .json/.xlsx files first.');
+      return;
+    }
+    setTrainingUploadImportRunning(true);
+    setTrainingUploadMessage('');
+    setTrainingImportMessage('');
+    try {
+      const filesPayload = await Promise.all(
+        selectedTrainingFiles.map(async (file) => ({
+          fileName: file.name,
+          contentBase64: await toBase64(file)
+        }))
+      );
+      const uploadRes = await axios.post(`${API}/api/admin/quote-training/upload`, {
+        files: filesPayload
+      });
+      const savedCount = Number(uploadRes?.data?.data?.savedCount || 0);
+
+      const importRes = await axios.post(`${API}/api/admin/quote-training/import`);
+      const summary = importRes?.data?.data?.summary;
+      if (summary) {
+        setTrainingImportMessage(
+          `Upload+Import complete: uploaded ${savedCount}, imported ${summary.importedMetrics} metrics (${summary.successCount} files, ${summary.failedCount} failed).`
+        );
+      } else {
+        setTrainingImportMessage(`Upload+Import complete: uploaded ${savedCount} file(s).`);
+      }
+      setSelectedTrainingFiles([]);
+      await loadDashboard();
+    } catch (err) {
+      console.error(err);
+      setTrainingImportMessage(err.response?.data?.error || 'Upload+Import failed.');
+    } finally {
+      setTrainingUploadImportRunning(false);
+    }
   };
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [loadDashboard]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
@@ -81,7 +216,7 @@ export default function Dashboard() {
         scope_notes: quote.summary || `Converted from ${quote.quote_num}`,
         quote_num: quote.quote_num
       });
-      await axios.patch(`${API}/api/quotes/${quote.id}`, { status: 'won' });
+      await axios.patch(`${API}/api/admin/quotes/${quote.id}`, { status: 'won' });
       loadDashboard();
     } catch (err) {
       console.error(err);
@@ -256,7 +391,7 @@ export default function Dashboard() {
                 {recentQuotes.length === 0 ? (
                   <p className="text-osv-muted text-xs font-mono py-4 text-center">No quotes yet</p>
                 ) : recentQuotes.map(q => (
-                  <div key={q.quote_num} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] -mx-2 px-2 rounded transition-colors">
+                  <div key={q.quote_num} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] -mx-2 px-2 rounded transition-colors">
                      <div className="flex flex-col">
                        <span className="text-sm font-medium text-osv-white truncate">{q.summary || q.trade || 'Untitled'}</span>
                        <span className="text-[10px] text-osv-muted font-mono">{q.quote_num}</span>
@@ -264,6 +399,9 @@ export default function Dashboard() {
                      <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded border ${statusStyle(q.status)}`}>{q.status}</span>
                      <span className="text-xs font-mono text-osv-white">${(q.final_client_quote || 0).toLocaleString()}</span>
                      <span className="text-[10px] text-osv-muted w-12 text-right">{timeAgo(q.created_at)}</span>
+                     <Link to={`/quotes/${q.id}/edit`} className="text-[10px] text-osv-accent uppercase tracking-wide hover:underline text-right">
+                       Edit
+                     </Link>
                   </div>
                 ))}
               </div>
@@ -277,7 +415,7 @@ export default function Dashboard() {
                   <p className="text-osv-muted text-xs font-mono py-4 text-center">No pending approvals</p>
                 ) : pendingApprovalsList.map(q => {
                   const issuedTs = q.issued_at || q.sent_at;
-                  const isOverdue = issuedTs && (Date.now() - issuedTs > 5 * 86400000);
+                  const isOverdue = Boolean(q.is_overdue);
                   return (
                     <div key={q.quote_num} className="flex items-start gap-3">
                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${isOverdue ? 'bg-osv-red' : 'bg-osv-accent animate-pulse'}`}></div>
@@ -363,6 +501,211 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* Security Audit Center — LIVE */}
+            <div className="bg-osv-bg border border-osv-border rounded-xl p-6 shadow-inner">
+              <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+                <h3 className="text-xs uppercase tracking-[0.15em] font-heading text-osv-white">
+                  Security Audit Center
+                </h3>
+                <button
+                  onClick={loadDashboard}
+                  className="text-[10px] uppercase tracking-widest text-osv-muted hover:text-osv-white transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  onClick={() => setAuditView('portal')}
+                  className={`px-2 py-1 text-[10px] uppercase tracking-wider border rounded ${
+                    auditView === 'portal'
+                      ? 'text-osv-accent border-osv-accent/40 bg-osv-accent/10'
+                      : 'text-osv-muted border-white/10 hover:text-osv-white'
+                  }`}
+                >
+                  Portal
+                </button>
+                <button
+                  onClick={() => setAuditView('security')}
+                  className={`px-2 py-1 text-[10px] uppercase tracking-wider border rounded ${
+                    auditView === 'security'
+                      ? 'text-osv-accent border-osv-accent/40 bg-osv-accent/10'
+                      : 'text-osv-muted border-white/10 hover:text-osv-white'
+                  }`}
+                >
+                  Webhook/Twilio
+                </button>
+                <select
+                  value={auditOutcomeFilter}
+                  onChange={(e) => setAuditOutcomeFilter(e.target.value)}
+                  className="bg-osv-panel border border-white/10 text-osv-white text-[10px] uppercase tracking-wider rounded px-2 py-1"
+                >
+                  <option value="all">All Outcomes</option>
+                  <option value="success">Success</option>
+                  <option value="idempotent">Idempotent</option>
+                  <option value="duplicate">Duplicate</option>
+                  <option value="denied">Denied</option>
+                </select>
+                <select
+                  value={auditWindowMs}
+                  onChange={(e) => setAuditWindowMs(Number(e.target.value))}
+                  className="bg-osv-panel border border-white/10 text-osv-white text-[10px] uppercase tracking-wider rounded px-2 py-1"
+                >
+                  <option value={6 * 60 * 60 * 1000}>Last 6h</option>
+                  <option value={24 * 60 * 60 * 1000}>Last 24h</option>
+                  <option value={3 * 24 * 60 * 60 * 1000}>Last 3d</option>
+                  <option value={7 * 24 * 60 * 60 * 1000}>Last 7d</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                  <div className="text-[9px] uppercase tracking-wider text-osv-muted">Denied (24h)</div>
+                  <div className="text-sm font-mono text-osv-red">
+                    {securitySummary?.last_24h?.denied ?? '—'}
+                  </div>
+                </div>
+                <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                  <div className="text-[9px] uppercase tracking-wider text-osv-muted">Total Events (24h)</div>
+                  <div className="text-sm font-mono text-osv-white">
+                    {securitySummary?.last_24h?.total ?? '—'}
+                  </div>
+                </div>
+                <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                  <div className="text-[9px] uppercase tracking-wider text-osv-muted">Denied (7d)</div>
+                  <div className="text-sm font-mono text-osv-red">
+                    {securitySummary?.last_7d?.denied ?? '—'}
+                  </div>
+                </div>
+                <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                  <div className="text-[9px] uppercase tracking-wider text-osv-muted">Total Events (7d)</div>
+                  <div className="text-sm font-mono text-osv-white">
+                    {securitySummary?.last_7d?.total ?? '—'}
+                  </div>
+                </div>
+              </div>
+              {securitySummaryError && (
+                <p className="text-osv-muted text-[10px] font-mono mb-2">{securitySummaryError}</p>
+              )}
+
+              {auditView === 'portal' ? (
+                portalAuditError ? (
+                  <p className="text-osv-muted text-xs font-mono">{portalAuditError}</p>
+                ) : portalAuditEvents.length === 0 ? (
+                  <p className="text-osv-muted text-xs font-mono">No recent portal events logged</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {portalAuditEvents.map((event) => (
+                      <li key={event.id} className="text-xs border-b border-white/5 pb-2 last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-osv-white font-medium uppercase tracking-wide">{event.action}</span>
+                          <span className={`text-[10px] uppercase ${
+                            event.outcome === 'success' || event.outcome === 'idempotent'
+                              ? 'text-emerald-400'
+                              : event.outcome === 'duplicate'
+                                ? 'text-osv-accent'
+                                : 'text-osv-red'
+                          }`}>{event.outcome}</span>
+                        </div>
+                        <div className="text-[10px] text-osv-muted mt-1 font-mono">
+                          {event.quote_id ? `${event.quote_id.slice(0, 8)}...` : 'no-quote'} • {timeAgo(event.created_at)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : (
+                securityAuditError ? (
+                  <p className="text-osv-muted text-xs font-mono">{securityAuditError}</p>
+                ) : securityAuditEvents.length === 0 ? (
+                  <p className="text-osv-muted text-xs font-mono">No recent webhook/twilio audit events logged</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {securityAuditEvents.map((event) => (
+                      <li key={event.id} className="text-xs border-b border-white/5 pb-2 last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-osv-white font-medium uppercase tracking-wide">
+                            {event.source}:{event.event_type}
+                          </span>
+                          <span className={`text-[10px] uppercase ${
+                            event.outcome === 'success' ? 'text-emerald-400' : 'text-osv-red'
+                          }`}>{event.outcome}</span>
+                        </div>
+                        <div className="text-[10px] text-osv-muted mt-1 font-mono">
+                          {event.reason || 'no-reason'} • {timeAgo(event.created_at)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              )}
+            </div>
+
+            {/* Quote Training Import */}
+            <div className="bg-osv-bg border border-osv-border rounded-xl p-6 shadow-inner">
+              <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+                <h3 className="text-xs uppercase tracking-[0.15em] font-heading text-osv-white">
+                  Quote Training Data
+                </h3>
+                <button
+                  onClick={loadDashboard}
+                  className="text-[10px] uppercase tracking-widest text-osv-muted hover:text-osv-white transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {trainingStatusError ? (
+                <p className="text-osv-muted text-xs font-mono">{trainingStatusError}</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                      <div className="text-[9px] uppercase tracking-wider text-osv-muted">Inbox Files</div>
+                      <div className="text-sm font-mono text-osv-white">
+                        {trainingStatus?.inboxFiles?.length || 0}
+                      </div>
+                    </div>
+                    <div className="bg-osv-panel/40 border border-white/5 rounded p-2">
+                      <div className="text-[9px] uppercase tracking-wider text-osv-muted">Import Runs</div>
+                      <div className="text-sm font-mono text-osv-white">
+                        {trainingStatus?.counters?.importRuns || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handleTrainingFileSelection}
+                      className="block w-full text-[10px] text-osv-muted file:mr-3 file:py-1.5 file:px-3 file:text-[10px] file:uppercase file:tracking-wider file:font-semibold file:border file:border-white/20 file:rounded file:bg-osv-panel file:text-osv-white hover:file:border-white/40"
+                    />
+                    <button
+                      onClick={handleUploadAndImportTrainingFiles}
+                      disabled={trainingUploadImportRunning}
+                      className="w-full px-3 py-2 text-[10px] font-semibold uppercase tracking-wider rounded border border-emerald-400/40 text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-60"
+                    >
+                      {trainingUploadImportRunning ? 'Uploading + Importing...' : 'Upload + Import (One Click)'}
+                    </button>
+                  </div>
+
+                  {trainingImportMessage && (
+                    <p className="text-[10px] text-osv-muted font-mono mt-3">{trainingImportMessage}</p>
+                  )}
+                  {trainingUploadMessage && (
+                    <p className="text-[10px] text-osv-muted font-mono mt-2">{trainingUploadMessage}</p>
+                  )}
+
+                  <div className="mt-3 text-[10px] text-osv-muted font-mono">
+                    Drop files into: <span className="text-osv-white">backend/training-data/inbox</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
