@@ -61,11 +61,13 @@ async function quoteOneMaterialLine({
         .slice(0, 8);
 
     const liveQuotes = [];
+    const supplierAttempts = [];
+    const materialQuery = `${norm.inferredMaterial || ''} ${norm.dimensions || ''}`.trim() || norm.searchText;
     for (const supplier of rankedSuppliers) {
         const live = await getLivePriceFromTavily({
             supplierName: supplier.name,
             website: supplier.website,
-            materialQuery: norm.searchText,
+            materialQuery,
             locationHint: `${suburb} ${postcode}`,
             cacheKey: buildCacheKey({
                 normalizedKey: norm.normalizedKey,
@@ -75,7 +77,25 @@ async function quoteOneMaterialLine({
             }),
             forceRefresh
         });
-        if (!live?.unitPrice) continue;
+        if (!live?.ok || !live?.unitPrice) {
+            supplierAttempts.push({
+                supplier_id: supplier.id,
+                supplier_name: supplier.name,
+                ok: false,
+                failure_reason: live?.failureReason || 'unknown_failure',
+                drive_time_seconds: supplier.driveTimeSeconds
+            });
+            continue;
+        }
+        supplierAttempts.push({
+            supplier_id: supplier.id,
+            supplier_name: supplier.name,
+            ok: true,
+            failure_reason: null,
+            source: live.source,
+            source_url: live.sourceUrl || null,
+            drive_time_seconds: supplier.driveTimeSeconds
+        });
         liveQuotes.push({
             supplierId: supplier.id,
             supplierName: supplier.name,
@@ -118,7 +138,8 @@ async function quoteOneMaterialLine({
                 fallbackUsed: true,
                 fallbackReason: 'no_live_or_baseline_price',
                 suppliersChecked: rankedSuppliers.map(s => ({ id: s.id, name: s.name })),
-                confidence: norm.confidence
+                confidence: norm.confidence,
+                supplier_attempts: supplierAttempts
             }
         };
     }
@@ -163,7 +184,9 @@ async function quoteOneMaterialLine({
             selected_drive_time_seconds: selected.driveTimeSeconds,
             selection_reason: selected.selectionReason || 'cheapest_nearby',
             fallbackUsed: usedFallback,
-            override_options: topOverrideOptions
+            fallbackReason: usedFallback ? 'live_scrape_unavailable_or_unparsed' : null,
+            override_options: topOverrideOptions,
+            supplier_attempts: supplierAttempts
         }
     };
 }

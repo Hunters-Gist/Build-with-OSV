@@ -43,6 +43,8 @@ export default function QuoteBuilder() {
   const [error, setError] = useState(null);
   const [savedQuote, setSavedQuote] = useState(null); // { quoteId, quoteNum, status }
   const [livePricingRefreshMeta, setLivePricingRefreshMeta] = useState(null);
+  const [copiedDebugKey, setCopiedDebugKey] = useState(null);
+  const [copiedFullAudit, setCopiedFullAudit] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -492,6 +494,37 @@ export default function QuoteBuilder() {
     };
   };
 
+  const handleCopyDebugJson = async (lineIndex, payload) => {
+    const key = `line-${lineIndex}`;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      setCopiedDebugKey(key);
+      window.setTimeout(() => {
+        setCopiedDebugKey(prev => (prev === key ? null : prev));
+      }, 1500);
+    } catch {
+      setCopiedDebugKey(null);
+    }
+  };
+
+  const handleCopyFullPricingAudit = async () => {
+    const fullAudit = {
+      generated_at: new Date().toISOString(),
+      material_audits: Array.isArray(quoteResult?.pricing_audit?.materialAudits)
+        ? quoteResult.pricing_audit.materialAudits
+        : [],
+      live_pricing_duration_ms: quoteResult?.pricing_audit?.livePricingDurationMs ?? null,
+      force_refresh: quoteResult?.pricing_audit?.forceRefresh ?? null
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(fullAudit, null, 2));
+      setCopiedFullAudit(true);
+      window.setTimeout(() => setCopiedFullAudit(false), 1500);
+    } catch {
+      setCopiedFullAudit(false);
+    }
+  };
+
   const handleSaveDraftQuote = async () => {
     if (!quoteResult) return;
     setLoading(true);
@@ -512,7 +545,7 @@ export default function QuoteBuilder() {
         generated_json: quoteResult,
         status: 'draft'
       };
-      const res = await axios.post(`${API_BASE}/api/quotes`, payload);
+      const res = await axios.post(`${API_BASE}/api/admin/quotes`, payload);
       setSavedQuote({
         quoteId: res.data.quoteId,
         quoteNum: res.data.quoteNum,
@@ -530,7 +563,7 @@ export default function QuoteBuilder() {
     setLoading(true);
     setError(null);
     try {
-      await axios.patch(`${API_BASE}/api/quotes/${savedQuote.quoteId}`, { status: 'issued' });
+      await axios.patch(`${API_BASE}/api/admin/quotes/${savedQuote.quoteId}`, { status: 'issued' });
       setSavedQuote(prev => prev ? { ...prev, status: 'issued' } : prev);
     } catch (err) {
       console.error(err);
@@ -543,6 +576,7 @@ export default function QuoteBuilder() {
   const labelClass = "block text-xs font-mono text-osv-muted tracking-wide mb-2";
   const btnPrimary = "w-full h-12 bg-osv-accent text-[#0A0A0F] font-medium rounded-lg hover:brightness-110 hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-200 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-osv-bg disabled:opacity-50 disabled:pointer-events-none";
   const btnSecondary = "w-full h-11 bg-transparent border border-white/10 text-osv-white font-medium rounded-lg hover:bg-white/5 hover:border-white/20 transition-all active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-accent focus-visible:ring-offset-2 focus-visible:ring-offset-osv-bg";
+  const showPricingDebugPanel = import.meta.env.DEV || import.meta.env.VITE_SHOW_PRICING_DEBUG === 'true';
 
   // ──────────────────────────── STEP 1: SCOPE & PHOTOS ────────────────────────────
   const renderStep1 = () => (
@@ -1094,13 +1128,24 @@ export default function QuoteBuilder() {
                 <div>
                   <div className="flex items-center justify-between mb-3 gap-3">
                     <h3 className="text-xs font-mono text-osv-muted tracking-wide">LINE ITEMS</h3>
-                    <button
-                      onClick={handleRefreshLivePrices}
-                      disabled={loading}
-                      className="h-8 px-3 bg-transparent border border-osv-accent/40 text-osv-accent text-[10px] font-mono rounded-lg hover:bg-osv-accent/10 transition-all disabled:opacity-50"
-                    >
-                      {loading ? 'Refreshing...' : 'Refresh Live Prices'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {showPricingDebugPanel && (
+                        <button
+                          type="button"
+                          onClick={handleCopyFullPricingAudit}
+                          className="h-8 px-3 bg-transparent border border-white/20 text-osv-white text-[10px] font-mono rounded-lg hover:bg-white/5 transition-all"
+                        >
+                          {copiedFullAudit ? 'Copied Full Audit' : 'Copy Full Pricing Audit'}
+                        </button>
+                      )}
+                      <button
+                        onClick={handleRefreshLivePrices}
+                        disabled={loading}
+                        className="h-8 px-3 bg-transparent border border-osv-accent/40 text-osv-accent text-[10px] font-mono rounded-lg hover:bg-osv-accent/10 transition-all disabled:opacity-50"
+                      >
+                        {loading ? 'Refreshing...' : 'Refresh Live Prices'}
+                      </button>
+                    </div>
                   </div>
                   {livePricingRefreshMeta && (
                     <div className="mb-3 bg-osv-accent/5 border border-osv-accent/20 rounded-lg p-2">
@@ -1170,6 +1215,58 @@ export default function QuoteBuilder() {
                             );
                           })()
                         )}
+                        {showPricingDebugPanel && item.category === 'Materials' && Array.isArray(quoteResult?.pricing_audit?.materialAudits) && (
+                          (() => {
+                            const audit = quoteResult.pricing_audit.materialAudits.find(a => a.line_item_index === idx);
+                            const attempts = Array.isArray(audit?.supplier_attempts) ? audit.supplier_attempts : [];
+                            if (!attempts.length) return null;
+                            return (
+                              <details className="mt-3 pt-3 border-t border-white/10">
+                                <summary className="cursor-pointer text-[10px] font-mono text-osv-accent uppercase tracking-wide">
+                                  Debug: Supplier Attempts ({attempts.length})
+                                </summary>
+                                <div className="mt-2 space-y-2">
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyDebugJson(idx, {
+                                        line_item_index: idx,
+                                        material_name: item.name,
+                                        selected_source: audit?.selected_source || null,
+                                        fallback_reason: audit?.fallbackReason || null,
+                                        confidence: audit?.confidence ?? null,
+                                        supplier_attempts: attempts
+                                      })}
+                                      className="h-7 px-2 bg-transparent border border-white/20 text-osv-white text-[10px] font-mono rounded hover:bg-white/5 transition-all"
+                                    >
+                                      {copiedDebugKey === `line-${idx}` ? 'Copied' : 'Copy Debug JSON'}
+                                    </button>
+                                  </div>
+                                  {attempts.map((attempt, attemptIdx) => (
+                                    <div key={`${idx}-attempt-${attemptIdx}`} className="bg-osv-bg/60 border border-white/10 rounded-lg p-2.5">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[11px] text-osv-white font-medium truncate">
+                                          {attempt.supplier_name || attempt.supplier_id || `Supplier ${attemptIdx + 1}`}
+                                        </p>
+                                        <span className={`text-[10px] font-mono ${attempt.ok ? 'text-osv-green' : 'text-osv-red'}`}>
+                                          {attempt.ok ? 'OK' : 'FAILED'}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-osv-muted font-mono mt-1">
+                                        reason: {attempt.failure_reason || 'none'} | source: {attempt.source || 'n/a'} | drive: {Number.isFinite(Number(attempt.drive_time_seconds)) ? `${attempt.drive_time_seconds}s` : 'n/a'}
+                                      </p>
+                                      {attempt.source_url && (
+                                        <p className="text-[10px] text-osv-muted mt-1 break-all">
+                                          {attempt.source_url}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            );
+                          })()
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1233,6 +1330,12 @@ export default function QuoteBuilder() {
                       className="block w-full h-11 leading-[44px] text-center bg-transparent border border-white/20 text-osv-white font-medium rounded-lg hover:bg-white/5 transition-all"
                     >
                       Open Client Portal
+                    </a>
+                    <a
+                      href={`/quotes/${savedQuote.quoteId}/edit`}
+                      className="block w-full h-11 leading-[44px] text-center bg-transparent border border-osv-accent/30 text-osv-accent font-medium rounded-lg hover:bg-osv-accent/10 transition-all"
+                    >
+                      Open Back-Office Editor
                     </a>
                   </div>
                 )}

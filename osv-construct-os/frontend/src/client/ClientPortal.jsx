@@ -4,6 +4,13 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
 
+function createActionNonce() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function parseGeneratedJson(raw) {
   if (!raw) return {};
   if (typeof raw === 'object') return raw;
@@ -31,6 +38,7 @@ export default function ClientPortal() {
   const [searchParams] = useSearchParams();
   const paymentSuccess = searchParams.get('success') === 'true';
   const sessionId = searchParams.get('session_id');
+  const portalToken = searchParams.get('token') || searchParams.get('t') || '';
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -52,7 +60,9 @@ export default function ClientPortal() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/api/quotes/${quoteId}`);
+      const res = await axios.get(`${API_BASE}/api/portal/quotes/${quoteId}`, {
+        params: portalToken ? { token: portalToken } : undefined
+      });
       setQuote(res.data?.data || null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load quote.');
@@ -74,7 +84,9 @@ export default function ClientPortal() {
       try {
         await axios.post(`${API_BASE}/api/checkout/confirm-payment`, {
           quoteNum: quote.quote_num || quote.id,
-          sessionId
+          sessionId,
+          portalToken,
+          actionNonce: createActionNonce()
         });
         await loadQuote();
       } catch (err) {
@@ -90,10 +102,29 @@ export default function ClientPortal() {
     setActionLoading(true);
     setError(null);
     try {
-      await axios.patch(`${API_BASE}/api/quotes/${quote.id}`, { status: 'accepted' });
+      await axios.post(`${API_BASE}/api/portal/quotes/${quote.quote_num || quote.id}/accept`, {
+        portalToken,
+        actionNonce: createActionNonce()
+      });
       await loadQuote();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to accept quote.');
+    }
+    setActionLoading(false);
+  };
+
+  const declineQuote = async () => {
+    if (!quote) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      await axios.post(`${API_BASE}/api/portal/quotes/${quote.quote_num || quote.id}/decline`, {
+        portalToken,
+        actionNonce: createActionNonce()
+      });
+      await loadQuote();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to decline quote.');
     }
     setActionLoading(false);
   };
@@ -105,7 +136,9 @@ export default function ClientPortal() {
     try {
       const res = await axios.post(`${API_BASE}/api/checkout/create-session`, {
         quoteNum: quote.quote_num,
-        clientName: quote.client_name
+        clientName: quote.client_name,
+        portalToken,
+        actionNonce: createActionNonce()
       });
       if (res.data?.url) {
         window.location.href = res.data.url;
@@ -253,8 +286,12 @@ export default function ClientPortal() {
             >
               {actionLoading ? 'Saving...' : 'Accept Quote'}
             </button>
-            <button disabled className="flex-1 bg-osv-panel/50 backdrop-blur-sm border border-white/10 text-osv-muted font-bold py-5 rounded uppercase tracking-[0.15em] text-[10px] md:text-xs">
-              Accept To Enable Deposit
+            <button
+              onClick={declineQuote}
+              disabled={actionLoading}
+              className="flex-1 bg-osv-panel/50 backdrop-blur-sm border border-white/10 text-osv-white font-bold py-5 rounded uppercase tracking-[0.15em] text-[10px] md:text-xs hover:bg-osv-panel hover:border-osv-white transition-all disabled:opacity-60"
+            >
+              Decline Quote
             </button>
           </div>
         ) : quote.status === 'accepted' ? (

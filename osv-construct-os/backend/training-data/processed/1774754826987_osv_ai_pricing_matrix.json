@@ -1,0 +1,163 @@
+{
+  "global_rules": {
+    "minimum_job_charge": 350,
+    "half_day_labour": 450,
+    "full_day_labour": 800,
+    "tradesman_labourer_day_rate": 1150
+  },
+  "multipliers": {
+    "easy_access": 1.0,
+    "moderate_access": 1.1,
+    "difficult_access": 1.2,
+    "high_risk_range": [
+      1.15,
+      1.3
+    ]
+  },
+  "services": [
+    {
+      "category": "Decking",
+      "service": "Treated pine subframe + merbau deck supply/install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "480-620"
+    },
+    {
+      "category": "Decking",
+      "service": "Hardwood deck supply/install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "550-750"
+    },
+    {
+      "category": "Decking",
+      "service": "Composite deck supply/install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "600-850"
+    },
+    {
+      "category": "Deck Restoration",
+      "service": "Standard restoration package",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "76"
+    },
+    {
+      "category": "Deck Restoration",
+      "service": "Heavy restoration package",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "101"
+    },
+    {
+      "category": "Deck Restoration",
+      "service": "Replace damaged deck board",
+      "unit": "board",
+      "rate_ex_gst": "85-140"
+    },
+    {
+      "category": "Pergolas",
+      "service": "Timber pergola supply/install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "450-700"
+    },
+    {
+      "category": "Pergolas",
+      "service": "Insulated roof pergola",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "700-1050"
+    },
+    {
+      "category": "Fencing",
+      "service": "Timber paling fence supply/install",
+      "unit": "lm",
+      "rate_ex_gst": "110-180"
+    },
+    {
+      "category": "Fencing",
+      "service": "Horizontal slat screen fence",
+      "unit": "lm",
+      "rate_ex_gst": "180-320"
+    },
+    {
+      "category": "Landscaping",
+      "service": "Site clearing and levelling",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "25-60"
+    },
+    {
+      "category": "Landscaping",
+      "service": "Turf preparation and install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "35-65"
+    },
+    {
+      "category": "Retaining Walls",
+      "service": "Pine sleeper retaining wall under 600mm",
+      "unit": "lm",
+      "rate_ex_gst": "180-260"
+    },
+    {
+      "category": "Retaining Walls",
+      "service": "Concrete sleeper retaining wall",
+      "unit": "lm",
+      "rate_ex_gst": "320-550"
+    },
+    {
+      "category": "Paving",
+      "service": "Brick paving lift and relay",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "90-140"
+    },
+    {
+      "category": "Paving",
+      "service": "Concrete path plain finish",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "110-160"
+    },
+    {
+      "category": "Cladding",
+      "service": "External timber cladding install",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "180-320"
+    },
+    {
+      "category": "Cladding",
+      "service": "Kitchen island cladding",
+      "unit": "each",
+      "rate_ex_gst": "450-1200"
+    },
+    {
+      "category": "Carpentry",
+      "service": "Carpenter labour only",
+      "unit": "hour",
+      "rate_ex_gst": "95-120"
+    },
+    {
+      "category": "Carpentry",
+      "service": "Floating shelf install",
+      "unit": "each",
+      "rate_ex_gst": "120-220"
+    },
+    {
+      "category": "Painting",
+      "service": "Exterior painting",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "18-35"
+    },
+    {
+      "category": "Painting",
+      "service": "Spray finish \u2013 airless",
+      "unit": "m\u00b2",
+      "rate_ex_gst": "15-28"
+    }
+  ],
+  "tags": [
+    "mandatory_measurement",
+    "photo_verified",
+    "high_risk",
+    "premium_material",
+    "structural_unknown",
+    "restoration_only",
+    "supply_install",
+    "labour_only",
+    "small_job_loading",
+    "difficult_access"
+  ]
+}

@@ -253,10 +253,10 @@ cd backend
 npm run smoke:validation
 ```
 
-**Environment variables**
+#### Environment Variables
 
 | Variable | Purpose |
-|----------|---------|
+| -------- | ------- |
 | `API_BASE` | Backend origin (default `http://127.0.0.1:3001`) |
 | `ADMIN_BEARER` | Supabase access JWT (`Authorization: Bearer …`) when `ENFORCE_ADMIN_AUTH=true` — without it, admin quote tests may see **401** before Zod runs (the script accepts 400 or 401 for those three cases) |
 | `SMOKE_WEBHOOK_SECRET` | Must match `WEBHOOK_SHARED_SECRET` when `ENFORCE_WEBHOOK_SECRET=true`, or the webhook case returns **401** instead of **400** (the script accepts either) |
@@ -264,6 +264,68 @@ npm run smoke:validation
 | `SMOKE_PORTAL_REF` | Quote ref in portal URL (default dummy; body is invalid so the quote need not exist) |
 
 Scripts live in `scripts/smokeApiValidation.sh` (runner) and `scripts/smokeApiValidation.lib.sh` (shared helpers).
+
+If several checks fail with **404** or unexpected codes, another app may be bound to the default port — point `API_BASE` at the OSV backend (or start it with `npm start` and confirm `GET /health` returns this app’s JSON).
+
+### API positive smoke (curl)
+
+Runs a compact happy-path flow:
+
+1. Create admin quote (draft)
+2. Issue quote (gets portal token)
+3. Read portal quote with token
+4. Accept quote
+5. Attempt checkout session create
+
+```bash
+cd backend
+ADMIN_BEARER='your_supabase_access_jwt' npm run smoke:positive
+```
+
+Optional env:
+
+| Variable | Purpose |
+| -------- | ------- |
+| `API_BASE` | Backend origin (default `http://127.0.0.1:3001`) |
+| `ADMIN_BEARER` | Required for admin route flow |
+| `SMOKE_CLIENT_NAME` | Quote create payload value |
+| `SMOKE_CLIENT_EMAIL` | Quote create payload value |
+
+Notes:
+
+- `smoke:positive` intentionally allows `POST /api/checkout/create-session` to return **200** (Stripe configured) or **500** (Stripe not configured in local env) while still confirming payload/route path behavior.
+- The script does create local quote rows when it runs successfully.
+
+### Cleanup smoke-created quotes
+
+Dry-run (default, no deletes):
+
+```bash
+cd backend
+npm run cleanup:smoke
+```
+
+Execute deletion (explicit):
+
+```bash
+cd backend
+npm run cleanup:smoke -- --yes
+```
+
+Optional filters:
+
+```bash
+npm run cleanup:smoke -- --email=smoke@example.com --name="Smoke Client" --summary-contains="Smoke positive quote" --yes
+```
+
+By default it targets `client_email=smoke@example.com`.
+It deletes matching rows from:
+
+- `quotes`
+- `quote_revisions`
+- `quote_adjustment_deltas`
+- `quote_portal_audit`
+- `quote_portal_nonces`
 
 - Learning tests:
   - `npm run test:learning`

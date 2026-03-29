@@ -1,0 +1,172 @@
+{
+  "business": "OSV Construct",
+  "currency": "AUD",
+  "location": "Melbourne, VIC",
+  "defaultMargins": {
+    "smallJobs": 0.4,
+    "carpentry": 0.3,
+    "landscaping": 0.3,
+    "largeJobs": 0.25,
+    "subcontractor": 0.25
+  },
+  "decking": {
+    "restoration": {
+      "standard": {
+        "unit": "sqm",
+        "min": 45,
+        "max": 85,
+        "default": 65
+      },
+      "heavyRepair": {
+        "unit": "sqm",
+        "min": 85,
+        "max": 140,
+        "default": 110
+      }
+    },
+    "replacement": {
+      "treatedPine": {
+        "unit": "sqm",
+        "min": 180,
+        "max": 280,
+        "default": 230
+      },
+      "merbau": {
+        "unit": "sqm",
+        "min": 220,
+        "max": 350,
+        "default": 285
+      },
+      "composite": {
+        "unit": "sqm",
+        "min": 300,
+        "max": 450,
+        "default": 375
+      }
+    },
+    "fullBuild": {
+      "treatedPine": {
+        "unit": "sqm",
+        "min": 350,
+        "max": 500,
+        "default": 425
+      },
+      "merbau": {
+        "unit": "sqm",
+        "min": 450,
+        "max": 650,
+        "default": 550
+      },
+      "composite": {
+        "unit": "sqm",
+        "min": 550,
+        "max": 850,
+        "default": 700
+      }
+    }
+  },
+  "cladding": {
+    "vjPanels": {
+      "2400x1200": {
+        "unit": "sheet",
+        "price": 320
+      },
+      "2700x1200": {
+        "unit": "sheet",
+        "price": 360
+      },
+      "3000x1200": {
+        "unit": "sheet",
+        "price": 400
+      }
+    },
+    "external": {
+      "basicFibreCement": {
+        "unit": "sqm",
+        "min": 90,
+        "max": 130,
+        "default": 110
+      },
+      "standardCementSheet": {
+        "unit": "sqm",
+        "min": 120,
+        "max": 160,
+        "default": 140
+      },
+      "jamesHardie": {
+        "unit": "sqm",
+        "min": 160,
+        "max": 260,
+        "default": 210
+      },
+      "tasmanianOakFeatureWall": {
+        "unit": "sqm",
+        "min": 280,
+        "max": 350,
+        "default": 320
+      }
+    }
+  },
+  "artificialTurf": {
+    "low": {
+      "supplyPerSqm": 35,
+      "installedPerSqm": 135
+    },
+    "medium": {
+      "supplyPerSqm": 65,
+      "installedPerSqm": 165
+    },
+    "high": {
+      "supplyPerSqm": 100,
+      "installedPerSqm": [
+        200,
+        240
+      ]
+    },
+    "labourRateHr": 95,
+    "compactorHire": 100,
+    "delivery": 100
+  },
+  "excavation": {
+    "operatorRateHr": 85,
+    "machineHire": {
+      "1_6T": 400,
+      "2_5T_3_5T": [
+        500,
+        700
+      ],
+      "5TPlus": [
+        800,
+        1500
+      ]
+    }
+  },
+  "fencing": {
+    "timberPaling": {
+      "unit": "lm",
+      "min": 120,
+      "max": 150,
+      "default": 135
+    }
+  },
+  "retainingWalls": {
+    "treatedPine": {
+      "unit": "lm",
+      "min": 250,
+      "max": 450,
+      "default": 350
+    },
+    "redGum": {
+      "unit": "lm",
+      "min": 350,
+      "max": 600,
+      "default": 510
+    },
+    "concreteSleeper": {
+      "unit": "lm",
+      "min": 450,
+      "max": 750,
+      "default": 600
+    }
+  }
+}

@@ -1,13 +1,49 @@
 import express from 'express';
 import twilio from 'twilio';
 import { Resend } from 'resend';
+import db from '../db/index.js';
+import { logSecurityAuditEvent } from '../services/securityAudit.js';
 
 const router = express.Router();
 const VoiceResponse = twilio.twiml.VoiceResponse;
+const shouldEnforceTwilioSignature = String(process.env.ENFORCE_TWILIO_SIGNATURE || 'false').toLowerCase() === 'true';
+
+function verifyTwilioSignature(req, pathOverride = null) {
+    if (!shouldEnforceTwilioSignature) return { ok: true };
+    const signature = req.headers['x-twilio-signature'];
+    if (!signature) return { ok: false, status: 401, error: 'Missing Twilio signature header.', reason: 'missing_twilio_signature' };
+    if (!process.env.TWILIO_AUTH_TOKEN) {
+        return { ok: false, status: 500, error: 'TWILIO_AUTH_TOKEN is required when signature verification is enabled.', reason: 'missing_twilio_auth_token' };
+    }
+
+    const baseUrl = process.env.PUBLIC_API_BASE_URL || 'https://osv-construct-backend.onrender.com';
+    const path = pathOverride || req.originalUrl;
+    const fullUrl = `${baseUrl}${path}`;
+    const isValid = twilio.validateRequest(
+        process.env.TWILIO_AUTH_TOKEN,
+        String(signature),
+        fullUrl,
+        req.body || {}
+    );
+
+    if (!isValid) return { ok: false, status: 401, error: 'Invalid Twilio request signature.', reason: 'invalid_twilio_signature' };
+    return { ok: true };
+}
 
 // 1. Initial Inbound VoIP Webhook (Only used if Twilio Number uses VoiceWebhook instead of SIP Trunk)
 router.post('/voice', (req, res) => {
     try {
+        const signatureCheck = verifyTwilioSignature(req, '/api/twilio/voice');
+        if (!signatureCheck.ok) {
+            logSecurityAuditEvent(db, req, {
+                source: 'twilio',
+                eventType: 'signature_validation',
+                outcome: 'denied',
+                reason: signatureCheck.reason || signatureCheck.error
+            });
+            return res.status(signatureCheck.status || 401).type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Unauthorized callback.</Say></Response>');
+        }
+
         const twiml = new VoiceResponse();
         const fromNumber = req.body?.From || 'Unknown';
         console.log(`[Twilio Webhook] Incoming call from ${fromNumber}`);
@@ -32,6 +68,17 @@ router.post('/voice', (req, res) => {
 
 // 2. Recording / Call Status Callback
 router.post('/recording_callback', async (req, res) => {
+    const signatureCheck = verifyTwilioSignature(req, '/api/twilio/recording_callback');
+    if (!signatureCheck.ok) {
+        logSecurityAuditEvent(db, req, {
+            source: 'twilio',
+            eventType: 'signature_validation',
+            outcome: 'denied',
+            reason: signatureCheck.reason || signatureCheck.error
+        });
+        return res.status(signatureCheck.status || 401).send('Unauthorized');
+    }
+
     const payload = req.body;
     // Always return 200 OK immediately so Twilio doesn't block or retry
     res.status(200).send('OK');

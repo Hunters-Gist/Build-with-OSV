@@ -7,7 +7,7 @@ dotenv.config();
 const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy');
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID || 'ACdummy', process.env.TWILIO_AUTH_TOKEN || 'dummy');
 
-export const sendQuoteEmail = async ({ clientEmail, clientName, quoteNum, totalValue }) => {
+export const sendQuoteEmail = async ({ clientEmail, clientName, quoteNum, totalValue, portalUrl }) => {
     // Failsafe sandbox simulation if keys aren't mounted in backend/.env yet
     if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'dummy_key_for_now') {
         console.warn("Resend API Key missing. Simulating email dispatch.");
@@ -36,7 +36,7 @@ export const sendQuoteEmail = async ({ clientEmail, clientName, quoteNum, totalV
             <p style="font-size: 16px; line-height: 1.8; color: #cbd5e1;">Please review your complete interactive scope breakdown and explicitly secure your phase 1 build milestones directly through our secure OSV Client Portal below.</p>
             
             <div style="text-align: center; margin-top: 35px; margin-bottom: 15px;">
-                <a href="https://osv-saa-s.vercel.app/client/quote/${quoteNum}" style="display: inline-block; background-color: #22c55e; color: #0b0c0f; padding: 18px 36px; text-decoration: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; border: 1px solid #16a34a;">Access Secure Active Quote</a>
+                <a href="${portalUrl || `https://osv-saa-s.vercel.app/client/quote/${quoteNum}`}" style="display: inline-block; background-color: #22c55e; color: #0b0c0f; padding: 18px 36px; text-decoration: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; border: 1px solid #16a34a;">Access Secure Active Quote</a>
             </div>
         </div>
         

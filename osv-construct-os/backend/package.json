@@ -10,7 +10,9 @@
     "test:learning": "node scripts/testQuoteLearning.js",
     "optimize:quotes": "node scripts/optimizeQuotePrompts.js",
     "import:quote-training": "node scripts/importQuoteTrainingData.js",
-    "smoke:validation": "bash scripts/smokeApiValidation.sh"
+    "cleanup:smoke": "node scripts/cleanupSmokeQuotes.js",
+    "smoke:validation": "bash scripts/smokeApiValidation.sh",
+    "smoke:positive": "bash scripts/smokeApiPositive.sh"
   },
   "keywords": [],
   "author": "",
