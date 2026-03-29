@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { JOB_TYPES, JOB_TYPE_KEYS, getDefaultScope } from './jobTypeConfig';
@@ -55,6 +55,12 @@ export default function QuoteBuilder() {
     new URLSearchParams(location.search).get('next'),
     '/quotes/new'
   );
+
+  useEffect(() => {
+    // Backward compatibility: old reauth links pointed at /quotes/new.
+    if (!reauthRequested) return;
+    navigate(buildReauthPath(requestedNext), { replace: true });
+  }, [navigate, reauthRequested, requestedNext]);
 
   const fileInputRef = useRef(null);
   const redirectToReauth = useCallback(() => {

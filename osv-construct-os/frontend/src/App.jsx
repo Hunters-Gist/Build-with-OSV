@@ -18,6 +18,7 @@ const Dashboard = lazy(() => import('./dashboard/Dashboard.jsx'));
 const SubcontractorProfile = lazy(() => import('./subcontractors/Profile.jsx'));
 const SubcontractorOnboarding = lazy(() => import('./subcontractors/Onboarding.jsx'));
 const JobDashboard = lazy(() => import('./jobs/JobDashboard.jsx'));
+const Login = lazy(() => import('./auth/Login.jsx'));
 
 function UnauthorizedPanel() {
   return (
@@ -254,6 +255,7 @@ function AppRoutes() {
               </ProtectedRoute>
             )}
           />
+          <Route path="/login" element={<Login />} />
           <Route
             path="/pipeline"
             element={(

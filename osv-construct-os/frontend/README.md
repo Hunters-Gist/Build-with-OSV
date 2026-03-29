@@ -13,6 +13,8 @@ Template: copy `.env.example` to `.env.local` for local dev. On **Vercel**, defi
 | Variable | Notes |
 | -------- | ----- |
 | `VITE_API_URL` | Backend origin (no trailing slash), e.g. `https://osv-construct-backend.onrender.com`. The SPA falls back to a default host only for convenience; **set this explicitly in production** so Preview and Production point at the correct API. |
+| `VITE_SUPABASE_URL` | Supabase project URL for frontend sign-in (`/login`). |
+| `VITE_SUPABASE_ANON_KEY` | Supabase publishable anon key for frontend sign-in (`/login`). |
 
 ### Optional
 
@@ -53,6 +55,8 @@ npm run build
   - AI quote generation flow (`QuoteBuilder`)
   - save draft + issue to client portal
   - quick link to back-office editor after save
+- `/login`
+  - Admin sign-in entry point for dashboard and protected back-office routes
 - `/quotes/:quoteRef/edit`
   - back-office quote revision workbench (`QuoteEditor`)
   - line-item editing + summary edits

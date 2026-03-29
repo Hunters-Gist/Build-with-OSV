@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.
 const AUTH_STORAGE_KEYS = ['osv_access_token', 'auth_token', 'access_token'];
 const ADMIN_ROLES = new Set(['owner_admin', 'ops_staff', 'estimator']);
 const SESSION_TTL_MS = 30_000;
+const LOGIN_ROUTE = '/login';
 
 let sessionCache = null;
 let sessionCacheAt = 0;
@@ -61,6 +62,13 @@ export function clearKnownTokens() {
   }
 }
 
+export function setAccessToken(token) {
+  if (!token || typeof token !== 'string') return;
+  const normalized = token.trim();
+  if (!normalized) return;
+  window.localStorage.setItem('osv_access_token', normalized);
+}
+
 export function sanitizeNextPath(rawPath, fallback = '/quotes/new') {
   if (!rawPath || typeof rawPath !== 'string') return fallback;
   let candidate = rawPath.trim();
@@ -79,9 +87,9 @@ export function sanitizeNextPath(rawPath, fallback = '/quotes/new') {
   return candidate;
 }
 
-export function buildReauthPath(nextPath = '/quotes/new') {
-  const safeNext = sanitizeNextPath(nextPath, '/quotes/new');
-  return `/quotes/new?reauth=1&next=${encodeURIComponent(safeNext)}`;
+export function buildReauthPath(nextPath = '/') {
+  const safeNext = sanitizeNextPath(nextPath, '/');
+  return `${LOGIN_ROUTE}?reauth=1&next=${encodeURIComponent(safeNext)}`;
 }
 
 export function buildPostLogoutPath(nextPath = '/quotes/new') {
