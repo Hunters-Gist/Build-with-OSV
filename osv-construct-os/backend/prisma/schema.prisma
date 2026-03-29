@@ -1,0 +1,15 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  fullName String? @map("full_name")
+  phone    String? @db.VarChar(256)
+
+  @@map("users")
+}

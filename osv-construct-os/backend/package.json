@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
     "test:learning": "node scripts/testQuoteLearning.js",
     "optimize:quotes": "node scripts/optimizeQuotePrompts.js",
     "import:quote-training": "node scripts/importQuoteTrainingData.js",
@@ -23,12 +26,18 @@
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "postgres": "^3.4.8",
     "resend": "^6.9.4",
     "stripe": "^20.4.1",
     "twilio": "^5.13.0",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10",
+    "prisma": "^7.6.0"
   }
 }
