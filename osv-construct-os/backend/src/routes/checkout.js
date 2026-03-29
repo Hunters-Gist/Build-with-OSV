@@ -15,12 +15,35 @@ import { logPortalAudit } from '../services/portalAudit.js';
 
 const router = express.Router();
 
+function createIpRateLimiter({ windowMs, max }) {
+    const buckets = new Map();
+    return (req, res, next) => {
+        const key = `${req.ip || 'unknown'}:${req.path}`;
+        const now = Date.now();
+        const current = buckets.get(key);
+
+        if (!current || current.resetAt <= now) {
+            buckets.set(key, { count: 1, resetAt: now + windowMs });
+            return next();
+        }
+
+        if (current.count >= max) {
+            return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        }
+
+        current.count += 1;
+        return next();
+    };
+}
+
+router.use(createIpRateLimiter({ windowMs: 60_000, max: 40 }));
+
 router.post('/create-session', validateBody(checkoutCreateSessionBodySchema), async (req, res) => {
     try {
         const { quoteNum, depositAmount, clientName, actionNonce } = req.body;
 
         if (!process.env.STRIPE_SECRET_KEY) {
-            return res.status(500).json({ error: 'Stripe Secret Key missing in backend/.env' });
+            return res.status(503).json({ error: 'Payment service is temporarily unavailable.' });
         }
 
         // Initialize stripe directly dynamically to ensure the env var is read correctly 
@@ -110,8 +133,8 @@ router.post('/create-session', validateBody(checkoutCreateSessionBodySchema), as
 
         res.json({ url: session.url });
     } catch (error) {
-        console.error("Stripe Error:", error);
-        res.status(500).json({ error: error.message });
+        console.error('Stripe create session error:', error);
+        res.status(500).json({ error: 'Failed to create payment session.' });
     }
 });
 
@@ -119,7 +142,7 @@ router.post('/confirm-payment', validateBody(checkoutConfirmPaymentBodySchema), 
     try {
         const { quoteNum, sessionId, actionNonce } = req.body;
         if (!process.env.STRIPE_SECRET_KEY) {
-            return res.status(500).json({ error: 'Stripe Secret Key missing in backend/.env' });
+            return res.status(503).json({ error: 'Payment service is temporarily unavailable.' });
         }
 
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -219,7 +242,7 @@ router.post('/confirm-payment', validateBody(checkoutConfirmPaymentBodySchema), 
         res.json({ success: true, status: 'deposit_paid' });
     } catch (error) {
         console.error('Stripe confirmation error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to confirm payment.' });
     }
 });
 

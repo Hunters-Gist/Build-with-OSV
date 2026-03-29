@@ -12,7 +12,7 @@ import {
     patchQuoteStatusBodySchema,
     quoteRevisionBodySchema
 } from '../validation/requestSchemas.js';
-import { issuePortalTokenForQuote } from '../services/quotePortalSecurity.js';
+import { issuePortalTokenForQuote, shouldEnforcePortalTokens } from '../services/quotePortalSecurity.js';
 
 const router = express.Router();
 const shouldEnforceAdminAuth = String(process.env.ENFORCE_ADMIN_AUTH || 'false').toLowerCase() === 'true';
@@ -246,24 +246,29 @@ router.patch('/:id', ...adminRouteMiddleware, validateBody(patchQuoteStatusBodyS
         const depositPaidAt = (nextStatus === 'deposit_paid' && existing.status !== 'deposit_paid') ? now : existing.deposit_paid_at;
         const sentAt = (nextStatus === 'sent' && existing.status !== 'sent') ? now : existing.sent_at;
 
-        db.prepare(`
-            UPDATE quotes
-            SET status = COALESCE(?, status),
-                sent_at = ?,
-                issued_at = ?,
-                accepted_at = ?,
-                deposit_paid_at = ?,
-                updated_at = ?
-            WHERE id = ?
-        `).run(status, sentAt, issuedAt, acceptedAt, depositPaidAt, now, existing.id);
         let portalPayload = null;
-        if (nextStatus === 'issued') {
-            try {
-                portalPayload = issuePortalTokenForQuote(db, existing.id);
-            } catch (tokenError) {
-                console.error('Failed to issue portal token for quote:', tokenError.message);
+        const enforcePortalToken = shouldEnforcePortalTokens();
+        const transaction = db.transaction(() => {
+            db.prepare(`
+                UPDATE quotes
+                SET status = COALESCE(?, status),
+                    sent_at = ?,
+                    issued_at = ?,
+                    accepted_at = ?,
+                    deposit_paid_at = ?,
+                    updated_at = ?
+                WHERE id = ?
+            `).run(status, sentAt, issuedAt, acceptedAt, depositPaidAt, now, existing.id);
+            if (nextStatus === 'issued') {
+                try {
+                    portalPayload = issuePortalTokenForQuote(db, existing.id);
+                } catch (tokenError) {
+                    if (enforcePortalToken) throw tokenError;
+                    console.error('Failed to issue portal token for quote:', tokenError.message);
+                }
             }
-        }
+        });
+        transaction();
 
         res.json({ success: true, portal: portalPayload ? { token: portalPayload.token, expiresAt: portalPayload.expiresAt } : null });
     } catch (error) {
@@ -310,27 +315,32 @@ router.post('/', ...adminRouteMiddleware, validateBody(createQuoteBodySchema), a
         const nextStatus = VALID_STATUSES.includes(status) ? status : 'draft';
         const issuedAt = nextStatus === 'issued' ? now : null;
         
-        stmt.run(
-            id,
-            quoteNum,
-            client_name || 'Client',
-            client_email || null,
-            client_addr || null,
-            client_suburb || null,
-            client_postcode || null,
-            trade || 'General',
-            summary || '',
-            total_cost || 0, margin || 0, profit || 0, final_client_quote || 0,
-            JSON.stringify(parsedGenerated || {}), nextStatus, issuedAt, calibrationVersion, promptVersion, now, now
-        );
         let portalPayload = null;
-        if (nextStatus === 'issued') {
-            try {
-                portalPayload = issuePortalTokenForQuote(db, id);
-            } catch (tokenError) {
-                console.error('Failed to create portal token while saving quote:', tokenError.message);
+        const enforcePortalToken = shouldEnforcePortalTokens();
+        const transaction = db.transaction(() => {
+            stmt.run(
+                id,
+                quoteNum,
+                client_name || 'Client',
+                client_email || null,
+                client_addr || null,
+                client_suburb || null,
+                client_postcode || null,
+                trade || 'General',
+                summary || '',
+                total_cost || 0, margin || 0, profit || 0, final_client_quote || 0,
+                JSON.stringify(parsedGenerated || {}), nextStatus, issuedAt, calibrationVersion, promptVersion, now, now
+            );
+            if (nextStatus === 'issued') {
+                try {
+                    portalPayload = issuePortalTokenForQuote(db, id);
+                } catch (tokenError) {
+                    if (enforcePortalToken) throw tokenError;
+                    console.error('Failed to create portal token while saving quote:', tokenError.message);
+                }
             }
-        }
+        });
+        transaction();
         
         // --- RESEND EMAIL NOTIFICATION PIPELINE ---
         // Will asynchronously fire off the beautifully branded portal link to the client

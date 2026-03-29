@@ -1,21 +1,19 @@
-# Start Agents Fast (macOS)
+# Start 5 Agents Fast (Recommended Now, macOS)
 
 From repo root:
 
 ```bash
 cd /Users/gerardgrenville/Documents/OSV-SaaS-main
+git checkout -b hardening-24h
 ```
 
 ## Open this runbook first
 
 - `AGENT_SWARM_24H_RUNBOOK.md`
 
-## Fast mode choice
+## Agent tabs to open
 
-- Use `START_5_AGENTS.md` for the currently recommended setup.
-- Use this file for 6-agent turbo mode.
-
-## Copy a prompt to clipboard per agent tab
+Open 5 agent chats/tabs and paste one prompt into each.
 
 Agent 1:
 ```bash
@@ -37,12 +35,11 @@ Agent 4:
 pbcopy < agent-prompts/04-frontend-auth-guard.md
 ```
 
-Agent 5:
+Agent 5 (single lane, two sequential prompts in same chat):
 ```bash
 pbcopy < agent-prompts/05-db-migration-reliability.md
 ```
-
-Agent 6:
+After Agent 5 completes DB work, send:
 ```bash
 pbcopy < agent-prompts/06-ci-deploy-docs.md
 ```
@@ -52,10 +49,8 @@ Integrator final pass:
 pbcopy < agent-prompts/99-integrator-final-pass.md
 ```
 
-## Suggested branch setup
+## Merge target
 
-```bash
-git checkout -b hardening-24h
-```
+Use `hardening-24h` as integration branch.
 
-If agents work in isolated branches/worktrees, merge to `hardening-24h` for integration.
+If agents work in isolated branches/worktrees, merge everything into `hardening-24h` and run the integrator pass.

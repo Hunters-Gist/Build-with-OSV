@@ -6,14 +6,39 @@ import { logSecurityAuditEvent } from '../services/securityAudit.js';
 
 const router = express.Router();
 const VoiceResponse = twilio.twiml.VoiceResponse;
-const shouldEnforceTwilioSignature = String(process.env.ENFORCE_TWILIO_SIGNATURE || 'false').toLowerCase() === 'true';
+const shouldEnforceTwilioSignature =
+    process.env.NODE_ENV === 'production' &&
+    String(process.env.ENFORCE_TWILIO_SIGNATURE || 'false').toLowerCase() === 'true';
+
+function createIpRateLimiter({ windowMs, max }) {
+    const buckets = new Map();
+    return (req, res, next) => {
+        const key = `${req.ip || 'unknown'}:${req.path}`;
+        const now = Date.now();
+        const current = buckets.get(key);
+
+        if (!current || current.resetAt <= now) {
+            buckets.set(key, { count: 1, resetAt: now + windowMs });
+            return next();
+        }
+
+        if (current.count >= max) {
+            return res.status(429).send('Too Many Requests');
+        }
+
+        current.count += 1;
+        return next();
+    };
+}
+
+router.use(createIpRateLimiter({ windowMs: 60_000, max: 60 }));
 
 function verifyTwilioSignature(req, pathOverride = null) {
     if (!shouldEnforceTwilioSignature) return { ok: true };
     const signature = req.headers['x-twilio-signature'];
-    if (!signature) return { ok: false, status: 401, error: 'Missing Twilio signature header.', reason: 'missing_twilio_signature' };
+    if (!signature) return { ok: false, status: 403, publicError: 'Forbidden', reason: 'missing_twilio_signature' };
     if (!process.env.TWILIO_AUTH_TOKEN) {
-        return { ok: false, status: 500, error: 'TWILIO_AUTH_TOKEN is required when signature verification is enabled.', reason: 'missing_twilio_auth_token' };
+        return { ok: false, status: 403, publicError: 'Forbidden', reason: 'missing_twilio_auth_token' };
     }
 
     const baseUrl = process.env.PUBLIC_API_BASE_URL || 'https://osv-construct-backend.onrender.com';
@@ -26,7 +51,7 @@ function verifyTwilioSignature(req, pathOverride = null) {
         req.body || {}
     );
 
-    if (!isValid) return { ok: false, status: 401, error: 'Invalid Twilio request signature.', reason: 'invalid_twilio_signature' };
+    if (!isValid) return { ok: false, status: 403, publicError: 'Forbidden', reason: 'invalid_twilio_signature' };
     return { ok: true };
 }
 
@@ -39,9 +64,12 @@ router.post('/voice', (req, res) => {
                 source: 'twilio',
                 eventType: 'signature_validation',
                 outcome: 'denied',
-                reason: signatureCheck.reason || signatureCheck.error
+                reason: signatureCheck.reason || 'twilio_signature_validation_failed'
             });
-            return res.status(signatureCheck.status || 401).type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Unauthorized callback.</Say></Response>');
+            return res
+                .status(signatureCheck.status || 403)
+                .type('text/xml')
+                .send('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Forbidden.</Say></Response>');
         }
 
         const twiml = new VoiceResponse();
@@ -74,9 +102,9 @@ router.post('/recording_callback', async (req, res) => {
             source: 'twilio',
             eventType: 'signature_validation',
             outcome: 'denied',
-            reason: signatureCheck.reason || signatureCheck.error
+            reason: signatureCheck.reason || 'twilio_signature_validation_failed'
         });
-        return res.status(signatureCheck.status || 401).send('Unauthorized');
+        return res.status(signatureCheck.status || 403).send(signatureCheck.publicError || 'Forbidden');
     }
 
     const payload = req.body;

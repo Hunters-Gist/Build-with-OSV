@@ -1,11 +1,19 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
-const API = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
+import apiClient from '../lib/apiClient';
+import {
+  buildReauthPath,
+  isAuthError,
+  performLogout,
+  readAccessToken
+} from '../auth/session';
 
 async function fetchDashboardBundle({ auditWindowMs, auditOutcomeFilter }) {
+  if (!readAccessToken()) {
+    throw new Error('AUTH_REQUIRED');
+  }
+
   const now = Date.now();
   const fromTs = now - auditWindowMs;
   const auditFilterParams = {
@@ -18,14 +26,17 @@ async function fetchDashboardBundle({ auditWindowMs, auditOutcomeFilter }) {
   }
 
   const [dashboardResult, portalAuditResult, securityAuditResult, securitySummaryResult, trainingStatusResult] = await Promise.allSettled([
-    axios.get(`${API}/api/dashboard`),
-    axios.get(`${API}/api/admin/portal-audit`, { params: auditFilterParams }),
-    axios.get(`${API}/api/admin/security-audit`, { params: auditFilterParams }),
-    axios.get(`${API}/api/admin/security-summary`),
-    axios.get(`${API}/api/admin/quote-training/status`)
+    apiClient.get('/api/dashboard'),
+    apiClient.get('/api/admin/portal-audit', { params: auditFilterParams }),
+    apiClient.get('/api/admin/security-audit', { params: auditFilterParams }),
+    apiClient.get('/api/admin/security-summary'),
+    apiClient.get('/api/admin/quote-training/status')
   ]);
 
   if (dashboardResult.status !== 'fulfilled') {
+    if (isAuthError(dashboardResult.reason)) {
+      throw new Error('AUTH_REQUIRED');
+    }
     throw new Error('Failed to load dashboard');
   }
 
@@ -75,6 +86,7 @@ function jobTrackInfo(job) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [trainingImportMessage, setTrainingImportMessage] = useState('');
   const [selectedTrainingFiles, setSelectedTrainingFiles] = useState([]);
@@ -85,6 +97,13 @@ export default function Dashboard() {
   const [auditWindowMs, setAuditWindowMs] = useState(24 * 60 * 60 * 1000);
   const [actionError, setActionError] = useState(null);
   const [handoffLoadingId, setHandoffLoadingId] = useState(null);
+  const redirectToReauth = useCallback(() => {
+    navigate(buildReauthPath('/'), { replace: true });
+  }, [navigate]);
+  const handleSignOut = useCallback(() => {
+    const destination = performLogout({ nextPath: '/quotes/new' });
+    navigate(destination, { replace: true });
+  }, [navigate]);
 
   const dashboardQueryKey = useMemo(
     () => ['dashboard-bundle', auditOutcomeFilter, auditWindowMs],
@@ -92,7 +111,10 @@ export default function Dashboard() {
   );
   const { data: dashboardBundle, isLoading, error, isFetching } = useQuery({
     queryKey: dashboardQueryKey,
-    queryFn: () => fetchDashboardBundle({ auditWindowMs, auditOutcomeFilter })
+    queryFn: () => fetchDashboardBundle({
+      auditWindowMs,
+      auditOutcomeFilter
+    })
   });
 
   const refreshDashboard = useCallback(async () => {
@@ -131,12 +153,12 @@ export default function Dashboard() {
           contentBase64: await toBase64(file)
         }))
       );
-      const uploadRes = await axios.post(`${API}/api/admin/quote-training/upload`, {
+      const uploadRes = await apiClient.post('/api/admin/quote-training/upload', {
         files: filesPayload
       });
       const savedCount = Number(uploadRes?.data?.data?.savedCount || 0);
 
-      const importRes = await axios.post(`${API}/api/admin/quote-training/import`);
+      const importRes = await apiClient.post('/api/admin/quote-training/import', {});
       const summary = importRes?.data?.data?.summary;
       if (summary) {
         setTrainingImportMessage(
@@ -149,6 +171,11 @@ export default function Dashboard() {
       await refreshDashboard();
     } catch (err) {
       console.error(err);
+      if (isAuthError(err)) {
+        setTrainingImportMessage('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        return;
+      }
       setTrainingImportMessage(err.response?.data?.error || 'Upload+Import failed.');
     } finally {
       setTrainingUploadImportRunning(false);
@@ -159,6 +186,22 @@ export default function Dashboard() {
     <div className="min-h-screen bg-osv-bg flex items-center justify-center">
       <div className="w-12 h-12 border-2 border-white/10 border-t-osv-accent rounded-full animate-spin"></div>
       <div className="ml-4 text-osv-muted uppercase tracking-[0.15em] text-xs font-heading">Loading Command Center...</div>
+    </div>
+  );
+
+  if (error?.message === 'AUTH_REQUIRED') return (
+    <div className="min-h-screen bg-osv-bg flex items-center justify-center">
+      <div className="bg-osv-panel/40 border border-osv-red/30 p-8 rounded-xl text-center max-w-md">
+        <p className="text-osv-red font-heading uppercase tracking-widest mb-2">Session Required</p>
+        <p className="text-osv-muted text-sm mb-4">Your session is missing or expired. Please sign in again to continue.</p>
+        <button
+          type="button"
+          onClick={redirectToReauth}
+          className="h-10 px-5 bg-osv-accent text-osv-bg text-xs uppercase tracking-[0.12em] font-semibold rounded-lg hover:brightness-110 transition-all"
+        >
+          Re-authenticate
+        </button>
+      </div>
     </div>
   );
 
@@ -188,7 +231,7 @@ export default function Dashboard() {
     setHandoffLoadingId(quote.id);
     try {
       setActionError(null);
-      await axios.post(`${API}/api/jobs`, {
+      await apiClient.post('/api/jobs', {
         title: quote.summary || `${quote.trade || 'Trade'} Job`,
         client_name: quote.client_name || 'Client',
         client_addr: '',
@@ -196,10 +239,15 @@ export default function Dashboard() {
         scope_notes: quote.summary || `Converted from ${quote.quote_num}`,
         quote_num: quote.quote_num
       });
-      await axios.patch(`${API}/api/admin/quotes/${quote.id}`, { status: 'won' });
+      await apiClient.patch(`/api/admin/quotes/${quote.id}`, { status: 'won' });
       await refreshDashboard();
     } catch (err) {
       console.error(err);
+      if (isAuthError(err)) {
+        setActionError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        return;
+      }
       setActionError(err.response?.data?.error || 'Failed to create job from deposit-paid quote');
     }
     setHandoffLoadingId(null);
@@ -238,6 +286,13 @@ export default function Dashboard() {
             <Link to="/admin" className="text-xs uppercase tracking-[0.15em] text-osv-muted hover:text-osv-accent transition-colors font-medium">
               Admin
             </Link>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-xs uppercase tracking-[0.15em] text-osv-muted hover:text-osv-red transition-colors font-medium"
+            >
+              Sign Out
+            </button>
           </div>
         </header>
 

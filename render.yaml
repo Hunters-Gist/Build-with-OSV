@@ -1,3 +1,6 @@
+# OSV Construct backend (Render). Set sync: false secrets in the Render dashboard.
+# AI uses OPENROUTER_API_KEY only; ANTHROPIC_API_KEY is not read by this service.
+# RETELL_API_KEY is for twilio-retell-setup/ scripts only, not runtime.
 services:
   - type: web
     name: osv-construct-backend
@@ -12,25 +15,72 @@ services:
     envVars:
       - key: DB_DIR
         value: /var/lib/osv-data
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 10000
       - key: TRELLO_API_KEY
         sync: false
       - key: TRELLO_TOKEN
         sync: false
-      - key: TRELLO_SECRET_KEY
-        sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
-        sync: false
-      - key: RETELL_API_KEY
         sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: OPENROUTER_API_KEY
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://osv-saa-s.vercel.app
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://osv-saa-s.vercel.app,https://buildwithosv.com.au,https://www.buildwithosv.com.au,https://osv-construct-os.vercel.app
+      - key: ENFORCE_ADMIN_AUTH
+        value: "true"
+      - key: ENFORCE_PORTAL_TOKEN
+        value: "true"
+      - key: ENFORCE_PORTAL_NONCE
+        value: "true"
+      - key: ENFORCE_WEBHOOK_SECRET
+        value: "true"
+      - key: ENFORCE_TWILIO_SIGNATURE
+        value: "true"
+      - key: QUOTE_PORTAL_SECRET
+        sync: false
+      - key: WEBHOOK_SHARED_SECRET
+        sync: false
+      - key: PUBLIC_API_BASE_URL
+        value: https://osv-construct-backend.onrender.com
       - key: JWT_SECRET
+        sync: false
+      # Optional feature configuration (backend reads these when present)
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: TWILIO_RECORDING_EMAIL
+        sync: false
+      - key: TRELLO_LIST_POSTED
+        sync: false
+      - key: TRELLO_LIST_ASSIGNED
+        sync: false
+      - key: TRELLO_LIST_IN_PROGRESS
+        sync: false
+      - key: TRELLO_LIST_COMPLETED
+        sync: false
+      - key: TRELLO_BOARD_ID
+        sync: false
+      - key: TRELLO_SECRET_KEY
+        sync: false
+      - key: TRELLO_LEADS_LIST_ID
+        sync: false
+      - key: TRELLO_QUOTES_LIST_ID
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
         sync: false

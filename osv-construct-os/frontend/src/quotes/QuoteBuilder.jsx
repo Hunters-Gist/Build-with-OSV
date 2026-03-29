@@ -1,11 +1,16 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { JOB_TYPES, JOB_TYPE_KEYS, getDefaultScope } from './jobTypeConfig';
 import DynamicScopeForm, { SubcategorySelect } from './DynamicScopeForm';
+import apiClient from '../lib/apiClient';
+import { buildReauthPath, isAuthError, readAccessToken, sanitizeNextPath } from '../auth/session';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
 
 export default function QuoteBuilder() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(1);
 
   // Step 1: Photos + Scope
@@ -45,8 +50,23 @@ export default function QuoteBuilder() {
   const [livePricingRefreshMeta, setLivePricingRefreshMeta] = useState(null);
   const [copiedDebugKey, setCopiedDebugKey] = useState(null);
   const [copiedFullAudit, setCopiedFullAudit] = useState(false);
+  const reauthRequested = new URLSearchParams(location.search).get('reauth') === '1';
+  const requestedNext = sanitizeNextPath(
+    new URLSearchParams(location.search).get('next'),
+    '/quotes/new'
+  );
 
   const fileInputRef = useRef(null);
+  const redirectToReauth = useCallback(() => {
+    navigate(buildReauthPath('/quotes/new'), { replace: true });
+  }, [navigate]);
+  const getRequiredAuth = useCallback(() => {
+    const token = readAccessToken();
+    if (token) return token;
+    setError('Your session is missing or expired. Redirecting to re-authenticate...');
+    redirectToReauth();
+    return null;
+  }, [redirectToReauth]);
 
   const compressImage = (file, maxDim = 1600, quality = 0.75) => new Promise((resolve) => {
     const img = new Image();
@@ -532,6 +552,10 @@ export default function QuoteBuilder() {
     if (!quoteResult) return;
     setLoading(true);
     setError(null);
+    if (!getRequiredAuth()) {
+      setLoading(false);
+      return;
+    }
     try {
       const payload = {
         client_name: formData.client_name || "TBD Client",
@@ -548,7 +572,7 @@ export default function QuoteBuilder() {
         generated_json: quoteResult,
         status: 'draft'
       };
-      const res = await axios.post(`${API_BASE}/api/admin/quotes`, payload);
+      const res = await apiClient.post('/api/admin/quotes', payload);
       setSavedQuote({
         quoteId: res.data.quoteId,
         quoteNum: res.data.quoteNum,
@@ -556,6 +580,12 @@ export default function QuoteBuilder() {
       });
     } catch (err) {
       console.error(err);
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Database error executing save.');
     }
     setLoading(false);
@@ -565,11 +595,21 @@ export default function QuoteBuilder() {
     if (!savedQuote?.quoteId) return;
     setLoading(true);
     setError(null);
+    if (!getRequiredAuth()) {
+      setLoading(false);
+      return;
+    }
     try {
-      await axios.patch(`${API_BASE}/api/admin/quotes/${savedQuote.quoteId}`, { status: 'issued' });
+      await apiClient.patch(`/api/admin/quotes/${savedQuote.quoteId}`, { status: 'issued' });
       setSavedQuote(prev => prev ? { ...prev, status: 'issued' } : prev);
     } catch (err) {
       console.error(err);
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setLoading(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to issue quote.');
     }
     setLoading(false);
@@ -1017,6 +1057,19 @@ export default function QuoteBuilder() {
             ))}
           </div>
         </div>
+        {reauthRequested && (
+          <div className="mb-4 bg-osv-accent/10 border border-osv-accent/30 text-osv-white rounded-xl p-4 text-sm flex items-center justify-between gap-3">
+            <span>Your session was missing or expired. Re-authenticate to access protected back-office actions like saving or issuing quotes.</span>
+            {requestedNext !== '/quotes/new' && (
+              <a
+                href={requestedNext}
+                className="shrink-0 h-9 px-3 inline-flex items-center bg-osv-accent text-osv-bg rounded-md text-[11px] uppercase tracking-wide font-semibold hover:brightness-110 transition-all"
+              >
+                Continue
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-8 flex-1 min-h-0">

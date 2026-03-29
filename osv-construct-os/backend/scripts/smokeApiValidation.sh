@@ -37,6 +37,7 @@ run_case() {
 }
 
 echo "=== OSV backend validation smoke (API_BASE=${API_BASE}) ==="
+echo "    Expects hardened routes: /api/admin/quotes, /api/portal/quotes, /api/checkout, /api/webhook"
 if ! smoke_precheck_health; then
     exit 1
 fi
@@ -51,16 +52,20 @@ if [ -n "$SMOKE_WEBHOOK_SECRET" ]; then
     WEBHOOK_HDRS=(-H "x-osv-webhook-secret: ${SMOKE_WEBHOOK_SECRET}")
 fi
 
+if ! smoke_precheck_hardened_surface; then
+    exit 1
+fi
+
 echo ""
-echo "--- Admin quote validation (400 = invalid payload; 401 = auth before validation) ---"
+echo "--- Admin quote validation (400 = invalid payload; 401 = missing/invalid token; 403 = token OK, role not allowed) ---"
 run_case "POST /api/admin/quotes invalid status enum" POST "/api/admin/quotes" \
-    '{"status":"__not_a_valid_status__"}' "400 401" "${ADMIN_EXTRA[@]}"
+    '{"status":"__not_a_valid_status__"}' "400 401 403" "${ADMIN_EXTRA[@]}"
 
 run_case "PATCH /api/admin/quotes/:id invalid status" PATCH "/api/admin/quotes/${SMOKE_QUOTE_ID}" \
-    '{"status":"bogus"}' "400 401" "${ADMIN_EXTRA[@]}"
+    '{"status":"bogus"}' "400 401 403" "${ADMIN_EXTRA[@]}"
 
 run_case "POST /api/admin/quotes/:id/revisions missing required fields" POST "/api/admin/quotes/${SMOKE_QUOTE_ID}/revisions" \
-    '{}' "400 401" "${ADMIN_EXTRA[@]}"
+    '{}' "400 401 403" "${ADMIN_EXTRA[@]}"
 
 echo ""
 echo "--- Portal accept body validation ---"
@@ -78,10 +83,10 @@ run_case "POST /api/checkout/confirm-payment missing sessionId" POST "/api/check
 echo ""
 echo "--- Webhook validation ---"
 if [ -z "$SMOKE_WEBHOOK_SECRET" ]; then
-    echo "NOTE: SMOKE_WEBHOOK_SECRET unset — if ENFORCE_WEBHOOK_SECRET=true, 401 is accepted instead of 400."
+    echo "NOTE: SMOKE_WEBHOOK_SECRET unset — if ENFORCE_WEBHOOK_SECRET=true, expect 403 (forbidden) before body validation runs."
 fi
 run_case "POST /api/webhook/leads invalid field types" POST "/api/webhook/leads" \
-    '{"from":123,"body":456}' "400 401" "${WEBHOOK_HDRS[@]}"
+    '{"from":123,"body":456}' "400 403" "${WEBHOOK_HDRS[@]}"
 
 echo ""
 echo "--- Admin security summary ---"
@@ -96,8 +101,9 @@ echo ""
 echo "=== Summary: ${PASSED} passed, ${FAILED} failed ==="
 if [ "$FAILED" -gt 0 ]; then
     echo "Hints:"
-    echo "  - Admin routes: set ADMIN_BEARER to a Supabase access JWT when ENFORCE_ADMIN_AUTH=true (otherwise expect 401 on invalid-body cases)."
-    echo "  - Webhook: set SMOKE_WEBHOOK_SECRET to match WEBHOOK_SHARED_SECRET when ENFORCE_WEBHOOK_SECRET=true."
+    echo "  - API_BASE must target this backend (GET /api/admin/quotes must not be 404). Legacy-only hosts expose GET /api/quotes/:ref only."
+    echo "  - Admin routes: set ADMIN_BEARER to a Supabase access JWT with owner_admin, ops_staff, or estimator when ENFORCE_ADMIN_AUTH=true (otherwise 401/403 before validation; 400 when auth+role OK but body is invalid)."
+    echo "  - Webhook: set SMOKE_WEBHOOK_SECRET to match WEBHOOK_SHARED_SECRET when ENFORCE_WEBHOOK_SECRET=true (otherwise expect 403)."
     exit 1
 fi
 exit 0
