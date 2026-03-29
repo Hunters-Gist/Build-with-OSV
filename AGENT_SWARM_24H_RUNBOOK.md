@@ -4,13 +4,23 @@ This runbook is optimized for parallel "vibe coding" with low merge-conflict ris
 
 ## Recommended Agent Count
 
-- Run **6 execution agents** in parallel.
+### Default (recommended now)
+
+- Run **5 execution agents** in parallel.
 - Keep **1 coordinator (you)** to review diffs, run integration checks, and merge.
-- Effective total: **7 lanes** (6 doers + 1 integrator).
+- Effective total: **6 lanes** (5 doers + 1 integrator).
 
-This is the sweet spot for this codebase size and task complexity. Fewer = slower. More = conflict overhead.
+Why default to 5 right now:
 
-## Agent Lanes and Ownership
+- Frontend has active in-progress edits, so one frontend owner lowers merge conflicts.
+- You still keep strong backend parallelism.
+
+### Optional turbo mode
+
+- Run **6 execution agents** only if the tree is quieter.
+- In 6-agent mode, split DB and CI/docs into separate lanes.
+
+## Agent Lanes and Ownership (5-Agent Default)
 
 Each agent owns specific files only.
 
@@ -33,24 +43,33 @@ Each agent owns specific files only.
    - `osv-construct-os/frontend/src/quotes/QuoteBuilder.jsx`
    - `osv-construct-os/frontend/src/quotes/QuoteEditor.jsx`
 
-5. **Agent 5 - DB Migration Reliability**
+5. **Agent 5 - DB Reliability + CI/Deploy/Docs**
    - `osv-construct-os/backend/src/db/index.js`
-   - Optional tests/scripts in `osv-construct-os/backend/scripts/` if required
-
-6. **Agent 6 - CI + Deploy + Docs**
    - `render.yaml`
    - `.github/workflows/hardening-checks.yml` (new)
    - `osv-construct-os/backend/README.md`
    - `osv-construct-os/frontend/README.md`
+   - Optional tests/scripts in `osv-construct-os/backend/scripts/` if required
+
+## Agent Lanes and Ownership (6-Agent Optional)
+
+Use this split only if you want maximum parallelism and accept more merge coordination:
+
+1. Agent 1: Backend core
+2. Agent 2: Webhook/Twilio
+3. Agent 3: Portal/quotes/checkout
+4. Agent 4: Frontend auth guarding
+5. Agent 5: DB migration reliability
+6. Agent 6: CI/deploy/docs
 
 ## Kickoff Order (10 minutes)
 
 1. Create a branch:
    - `git checkout -b hardening-24h`
-2. Open 6 agent chats/tabs.
+2. Open 5 agent chats/tabs (or 6 for optional turbo mode).
 3. Paste the matching init prompt from `agent-prompts/`.
 4. Tell each agent: "Work only in your owned files. No scope creep."
-5. Let all 6 run in parallel.
+5. Let them run in parallel.
 
 ## Prompt Files
 
@@ -61,6 +80,11 @@ Each agent owns specific files only.
 - `agent-prompts/05-db-migration-reliability.md`
 - `agent-prompts/06-ci-deploy-docs.md`
 - `agent-prompts/99-integrator-final-pass.md` (for your final merge/check pass)
+
+For 5-agent mode, Agent 5 runs both:
+
+1) `05-db-migration-reliability.md`, then
+2) `06-ci-deploy-docs.md`
 
 ## Coordinator Merge Flow
 

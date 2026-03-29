@@ -194,8 +194,27 @@ const migrations = [
     )`,
 ];
 
+function isIgnorableMigrationError(error) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || '');
+    if (code && code !== 'SQLITE_ERROR') return false;
+    return /duplicate column name/i.test(message) || /table .* already exists/i.test(message);
+}
+
 for (const sql of migrations) {
-    try { db.exec(sql); } catch (_) { /* column already exists */ }
+    try {
+        db.exec(sql);
+    } catch (error) {
+        if (isIgnorableMigrationError(error)) {
+            console.warn(`[DB migration] Ignored idempotent migration error: ${error.message}`);
+            continue;
+        }
+
+        console.error('[DB migration] Migration failed and startup will stop.');
+        console.error(`[DB migration] SQL: ${sql}`);
+        console.error(error);
+        throw error;
+    }
 }
 
 export default db;

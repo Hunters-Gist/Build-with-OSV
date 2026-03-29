@@ -39,6 +39,72 @@ smoke_precheck_health() {
     return 0
 }
 
+# Fail fast when API_BASE points at a stack without hardened mounts (common: legacy-only /api/quotes, or wrong port/proxy).
+# Call after WEBHOOK_HDRS is initialised (may be empty). Uses SMOKE_PORTAL_REF default.
+smoke_precheck_hardened_surface() {
+    local code
+
+    code=$(curl -sS -o /dev/null -w "%{http_code}" "${API_BASE}/api/admin/quotes") || code="000"
+    if [ "$code" = "404" ]; then
+        echo "FAIL: precheck — GET ${API_BASE}/api/admin/quotes -> 404 (admin quotes not mounted here)."
+        echo "      This repo expects CRUD at /api/admin/quotes (mutations are not POST /api/quotes — legacy is GET-only)."
+        echo "      Point API_BASE at the OSV Construct backend (e.g. JWT_SECRET=... npm start, default port 3001) or your Render URL."
+        return 1
+    fi
+    if [ "$code" = "000" ]; then
+        echo "FAIL: precheck — GET ${API_BASE}/api/admin/quotes -> unreachable"
+        return 1
+    fi
+    echo "OK:   precheck — GET /api/admin/quotes -> ${code} (not 404)"
+
+    code=$(smoke_request POST "${API_BASE}/api/checkout/create-session" '{}')
+    if [ "$code" = "404" ]; then
+        echo "FAIL: precheck — POST /api/checkout/create-session -> 404 (checkout router missing or wrong prefix)."
+        return 1
+    fi
+    if [ "$code" = "500" ]; then
+        echo "FAIL: precheck — POST /api/checkout/create-session with {} -> 500 (expected 400 from Zod validation)."
+        echo "      Older backends validated after handler logic; upgrade or fix API_BASE."
+        return 1
+    fi
+    case "$code" in
+        400) echo "OK:   precheck — POST /api/checkout/create-session {} -> 400" ;;
+        429) echo "OK:   precheck — POST /api/checkout/create-session {} -> 429 (rate limited; route exists)" ;;
+        *)
+            echo "WARN: precheck — POST /api/checkout/create-session {} -> ${code} (expected 400)"
+            ;;
+    esac
+
+    code=$(smoke_request POST "${API_BASE}/api/portal/quotes/${SMOKE_PORTAL_REF}/accept" '{"actionNonce":true}')
+    if [ "$code" = "404" ]; then
+        echo "FAIL: precheck — POST ${API_BASE}/api/portal/quotes/.../accept -> 404 (portal accept route missing)."
+        return 1
+    fi
+    case "$code" in
+        400) echo "OK:   precheck — POST /api/portal/quotes/:ref/accept invalid body -> 400" ;;
+        429) echo "OK:   precheck — portal accept probe -> 429 (rate limited; route exists)" ;;
+        *)
+            echo "WARN: precheck — portal accept probe -> ${code} (expected 400 for invalid actionNonce type)"
+            ;;
+    esac
+
+    code=$(smoke_request POST "${API_BASE}/api/webhook/leads" '{"from":123,"body":456}' "${WEBHOOK_HDRS[@]}")
+    case "$code" in
+        200)
+            echo "FAIL: precheck — POST /api/webhook/leads with invalid types -> 200 (expected 400 or 403)."
+            echo "      Backend is likely pre-Zod webhook validation; upgrade or fix API_BASE."
+            return 1
+            ;;
+        400|403) echo "OK:   precheck — POST /api/webhook/leads invalid types -> ${code}" ;;
+        429) echo "OK:   precheck — webhook probe -> 429 (rate limited; route exists)" ;;
+        *)
+            echo "WARN: precheck — POST /api/webhook/leads probe -> ${code} (expected 400 or 403)"
+            ;;
+    esac
+
+    return 0
+}
+
 # $1 name, $2 actual code, $3 space-separated allowed codes
 smoke_expect_codes() {
     local name="$1"

@@ -1,0 +1,213 @@
+name: Hardening Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - hardening-24h
+
+jobs:
+  workflow-yaml-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate workflow YAML parses
+        run: ruby -ryaml -e "YAML.load_file('.github/workflows/hardening-checks.yml'); puts 'OK'"
+
+  frontend-lint-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: osv-construct-os/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: osv-construct-os/frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  backend-startup-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: osv-construct-os/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: osv-construct-os/backend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Startup + health smoke
+        env:
+          NODE_ENV: production
+          JWT_SECRET: ci-local-secret
+          CORS_ALLOWED_ORIGINS: http://localhost:5173
+          ENFORCE_ADMIN_AUTH: "true"
+          ENFORCE_PORTAL_TOKEN: "true"
+          ENFORCE_WEBHOOK_SECRET: "true"
+          QUOTE_PORTAL_SECRET: ci-portal-secret
+          WEBHOOK_SHARED_SECRET: ci-webhook-secret
+        run: |
+          npm start &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+
+          for i in {1..20}; do
+            if curl -fsS "http://127.0.0.1:3001/health" > /dev/null; then
+              echo "Backend health check passed."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Backend failed startup health smoke."
+          exit 1
+
+  backend-security-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: osv-construct-os/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: osv-construct-os/backend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Reset DB and seed quote for portal-token checks
+        env:
+          DB_DIR: ${{ github.workspace }}/osv-construct-os/backend
+        run: |
+          rm -f "${DB_DIR}/osv-construct.db"
+          node --input-type=module - <<'NODE'
+          import db from './src/db/index.js';
+
+          const now = Date.now();
+          const farFuture = now + 86400000 * 365;
+
+          db.prepare(`
+            INSERT OR REPLACE INTO quotes (
+              id, quote_num, client_name, trade, status, final_client_quote,
+              portal_token_hash, portal_token_expires_at, created_at, updated_at, generated_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            'ci-sec-quote',
+            'CI-SEC-001',
+            'CI Client',
+            'general',
+            'accepted',
+            1000,
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            farFuture,
+            now,
+            now,
+            '{}'
+          );
+          NODE
+
+      - name: Security negative-path smoke (production-like, no external calls)
+        env:
+          NODE_ENV: production
+          PORT: "3001"
+          DB_DIR: ${{ github.workspace }}/osv-construct-os/backend
+          JWT_SECRET: ci-local-secret
+          CORS_ALLOWED_ORIGINS: http://localhost:5173
+          ENFORCE_ADMIN_AUTH: "true"
+          ENFORCE_PORTAL_TOKEN: "true"
+          ENFORCE_WEBHOOK_SECRET: "true"
+          ENFORCE_TWILIO_SIGNATURE: "true"
+          QUOTE_PORTAL_SECRET: ci-portal-secret
+          WEBHOOK_SHARED_SECRET: ci-webhook-secret
+          TWILIO_AUTH_TOKEN: ci-twilio-auth-token-local-only
+          PUBLIC_API_BASE_URL: http://127.0.0.1:3001
+        run: |
+          set -euo pipefail
+
+          npm start &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:3001/health" > /dev/null; then
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Backend did not become healthy in time."
+              exit 1
+            fi
+            sleep 1
+          done
+
+          assert_http() {
+            local name="$1"
+            local want="$2"
+            local got="$3"
+            if [ "$got" != "$want" ]; then
+              echo "ASSERT FAIL: $name — expected HTTP $want, got $got"
+              exit 1
+            fi
+          }
+
+          assert_portal_denied() {
+            local name="$1"
+            local got="$2"
+            if [ "$got" != "401" ] && [ "$got" != "403" ]; then
+              echo "ASSERT FAIL: $name — expected HTTP 401 or 403, got $got"
+              exit 1
+            fi
+          }
+
+          # Webhook: startup requires WEBHOOK_SHARED_SECRET when enforcement is on; this checks
+          # that a POST without X-Osv-Webhook-Secret is rejected (403).
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X POST "http://127.0.0.1:3001/api/webhook/leads" \
+            -H 'Content-Type: application/json' \
+            -d '{"subject":"ci","body":"x"}')
+          assert_http "POST /api/webhook/leads without X-Osv-Webhook-Secret" "403" "$code"
+
+          # Twilio: NODE_ENV=production + ENFORCE_TWILIO_SIGNATURE=true + bogus X-Twilio-Signature => 403
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -X POST "http://127.0.0.1:3001/api/twilio/voice" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -H 'X-Twilio-Signature: not-a-valid-signature' \
+            --data 'CallSid=CAciSmokeTest&From=%2B15551234567')
+          assert_http "POST /api/twilio/voice with invalid Twilio signature" "403" "$code"
+
+          # Portal: seeded quote + syntactically invalid token (no Stripe / no outbound HTTP)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "http://127.0.0.1:3001/api/portal/quotes/CI-SEC-001?token=totally-invalid-portal-token")
+          assert_portal_denied "GET /api/portal/quotes/:ref with invalid portal token" "$code"
+
+          echo "Security negative-path smoke passed."

@@ -1,8 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import apiClient from '../lib/apiClient';
+import {
+  buildReauthPath,
+  getApiBaseUrl,
+  isAuthError,
+  readAccessToken
+} from '../auth/session';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
+const API_BASE = getApiBaseUrl();
 
 const EDIT_REASONS = [
   { value: '', label: 'Select edit reason...' },
@@ -52,6 +58,7 @@ function recalcFinancials(lineItems, baseMarginPct = 0.25) {
 
 export default function QuoteEditor() {
   const { quoteRef } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [revisionsLoading, setRevisionsLoading] = useState(false);
@@ -67,6 +74,9 @@ export default function QuoteEditor() {
   const [revisionDeltasById, setRevisionDeltasById] = useState({});
   const [editReason, setEditReason] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const redirectToReauth = useCallback(() => {
+    navigate(buildReauthPath(`/quotes/${quoteRef}/edit`), { replace: true });
+  }, [navigate, quoteRef]);
 
   const formatTimestamp = (value) => {
     if (!value) return 'Unknown';
@@ -75,19 +85,27 @@ export default function QuoteEditor() {
     return date.toLocaleString();
   };
 
-  const loadRevisions = async (refValue) => {
+  const loadRevisions = useCallback(async (refValue) => {
     if (!refValue) return;
+    if (!readAccessToken()) {
+      redirectToReauth();
+      return;
+    }
     setRevisionsLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/api/admin/quotes/${refValue}/revisions?limit=25`);
+      const res = await apiClient.get(`/api/admin/quotes/${refValue}/revisions?limit=25`);
       const rows = res.data?.data?.revisions || [];
       setRevisions(rows);
     } catch (err) {
+      if (isAuthError(err)) {
+        redirectToReauth();
+        return;
+      }
       setRevisions([]);
       setError((prev) => prev || err.response?.data?.error || 'Failed to load revision history.');
     }
     setRevisionsLoading(false);
-  };
+  }, [redirectToReauth]);
 
   const formatDeltaPct = (value) => {
     const n = toNumber(value, NaN);
@@ -98,13 +116,21 @@ export default function QuoteEditor() {
   const loadRevisionDeltas = async (revisionId) => {
     if (!quote?.id || !revisionId) return;
     if (revisionDeltasById[revisionId]) return;
+    if (!readAccessToken()) {
+      redirectToReauth();
+      return;
+    }
     setRevisionDeltaLoading(true);
     setRevisionDeltaError(null);
     try {
-      const res = await axios.get(`${API_BASE}/api/admin/quotes/${quote.id}/revisions/${revisionId}/deltas`);
+      const res = await apiClient.get(`/api/admin/quotes/${quote.id}/revisions/${revisionId}/deltas`);
       const rows = res.data?.data?.deltas || [];
       setRevisionDeltasById((prev) => ({ ...prev, [revisionId]: rows }));
     } catch (err) {
+      if (isAuthError(err)) {
+        redirectToReauth();
+        return;
+      }
       setRevisionDeltaError(err.response?.data?.error || 'Failed to load delta details.');
     }
     setRevisionDeltaLoading(false);
@@ -126,8 +152,12 @@ export default function QuoteEditor() {
     const loadQuote = async () => {
       setLoading(true);
       setError(null);
+      if (!readAccessToken()) {
+        redirectToReauth();
+        return;
+      }
       try {
-        const res = await axios.get(`${API_BASE}/api/admin/quotes/${quoteRef}`);
+        const res = await apiClient.get(`/api/admin/quotes/${quoteRef}`);
         const loadedQuote = res.data?.data || null;
         if (!mounted) return;
         const generated = parseGeneratedJson(loadedQuote?.generated_json);
@@ -143,13 +173,17 @@ export default function QuoteEditor() {
         await loadRevisions(loadedQuote?.id || quoteRef);
       } catch (err) {
         if (!mounted) return;
+        if (isAuthError(err)) {
+          redirectToReauth();
+          return;
+        }
         setError(err.response?.data?.error || 'Failed to load quote.');
       }
       if (mounted) setLoading(false);
     };
     loadQuote();
     return () => { mounted = false; };
-  }, [quoteRef]);
+  }, [quoteRef, loadRevisions, redirectToReauth]);
 
   const financials = useMemo(() => {
     return recalcFinancials(lineItems, toNumber(quote?.margin, 0.25));
@@ -176,6 +210,12 @@ export default function QuoteEditor() {
     setSaving(true);
     setError(null);
     setSuccess(null);
+    if (!readAccessToken()) {
+      setSaving(false);
+      setError('Your session expired. Redirecting to re-authenticate...');
+      redirectToReauth();
+      return;
+    }
     try {
       const baseGenerated = parseGeneratedJson(quote.generated_json);
       const updatedJson = {
@@ -196,7 +236,7 @@ export default function QuoteEditor() {
         edited_by: 'backoffice',
         edit_source: 'backoffice'
       };
-      const res = await axios.post(`${API_BASE}/api/admin/quotes/${quote.id}/revisions`, payload);
+      const res = await apiClient.post(`/api/admin/quotes/${quote.id}/revisions`, payload);
       const data = res.data?.data || {};
       setQuote((prev) => prev ? ({
         ...prev,
@@ -213,6 +253,12 @@ export default function QuoteEditor() {
       setEditReason('');
       await loadRevisions(quote.id);
     } catch (err) {
+      if (isAuthError(err)) {
+        setError('Your session expired. Redirecting to re-authenticate...');
+        redirectToReauth();
+        setSaving(false);
+        return;
+      }
       setError(err.response?.data?.error || 'Failed to save quote revision.');
     }
     setSaving(false);

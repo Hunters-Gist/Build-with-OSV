@@ -1,6 +1,6 @@
 import express from 'express';
 import db from '../db/index.js';
-import { randomUUID } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
 import { validateBodyInPlace } from '../middleware/validateRequest.js';
 import { webhookLeadBodySchema } from '../validation/requestSchemas.js';
 import { logSecurityAuditEvent } from '../services/securityAudit.js';
@@ -8,13 +8,43 @@ import { logSecurityAuditEvent } from '../services/securityAudit.js';
 const router = express.Router();
 const shouldEnforceWebhookSecret = String(process.env.ENFORCE_WEBHOOK_SECRET || 'false').toLowerCase() === 'true';
 
+function createIpRateLimiter({ windowMs, max }) {
+    const buckets = new Map();
+    return (req, res, next) => {
+        const key = `${req.ip || 'unknown'}:${req.path}`;
+        const now = Date.now();
+        const current = buckets.get(key);
+
+        if (!current || current.resetAt <= now) {
+            buckets.set(key, { count: 1, resetAt: now + windowMs });
+            return next();
+        }
+
+        if (current.count >= max) {
+            return res.status(429).json({ error: 'Too Many Requests' });
+        }
+
+        current.count += 1;
+        return next();
+    };
+}
+
+router.use(createIpRateLimiter({ windowMs: 60_000, max: 60 }));
+
+function secretsMatch(expected, provided) {
+    const expectedBuffer = Buffer.from(String(expected), 'utf8');
+    const providedBuffer = Buffer.from(String(provided), 'utf8');
+    if (expectedBuffer.length !== providedBuffer.length) return false;
+    return timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
 function verifySharedSecret(req) {
     if (!shouldEnforceWebhookSecret) return { ok: true };
     const configuredSecret = process.env.WEBHOOK_SHARED_SECRET;
-    if (!configuredSecret) return { ok: false, status: 500, error: 'Webhook secret enforcement enabled but WEBHOOK_SHARED_SECRET is missing.', reason: 'missing_webhook_secret' };
+    if (!configuredSecret) return { ok: false, status: 403, publicError: 'Forbidden', reason: 'missing_webhook_secret' };
     const providedSecret = req.headers['x-osv-webhook-secret'];
-    if (!providedSecret || String(providedSecret) !== configuredSecret) {
-        return { ok: false, status: 401, error: 'Invalid webhook secret.', reason: 'invalid_webhook_secret' };
+    if (!providedSecret || !secretsMatch(configuredSecret, providedSecret)) {
+        return { ok: false, status: 403, publicError: 'Forbidden', reason: 'invalid_webhook_secret' };
     }
     return { ok: true };
 }
@@ -28,9 +58,9 @@ router.post('/leads', async (req, res) => {
                 source: 'webhook',
                 eventType: 'signature_validation',
                 outcome: 'denied',
-                reason: secretCheck.reason || secretCheck.error
+                reason: secretCheck.reason || 'webhook_secret_validation_failed'
             });
-            return res.status(secretCheck.status || 401).json({ error: secretCheck.error });
+            return res.status(secretCheck.status || 403).json({ error: secretCheck.publicError || 'Forbidden' });
         }
 
         const bodyCheck = validateBodyInPlace(req, webhookLeadBodySchema);

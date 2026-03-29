@@ -61,27 +61,30 @@ if ! smoke_precheck_health; then
     exit 1
 fi
 
-AUTH_HDRS=()
-if [ -n "$ADMIN_BEARER" ]; then
-    AUTH_HDRS=(-H "Authorization: Bearer ${ADMIN_BEARER}")
+if [ -z "$ADMIN_BEARER" ]; then
+    echo ""
+    echo "SKIP: Authenticated-positive check — ADMIN_BEARER is not set."
+    echo "      No protected request is sent; integrator JWT pass is not verified."
+    echo "      (Set ADMIN_BEARER to a Supabase access JWT to require GET /api/auth/me -> 200.)"
+    skip
+    echo ""
+    echo "SKIP: Admin -> portal flow — ADMIN_BEARER is required for create/issue steps."
+    skip
+    echo "=== Summary: ${PASSED} passed, ${FAILED} failed, ${SKIPPED} skipped ==="
+    exit 0
 fi
 
+AUTH_HDRS=(-H "Authorization: Bearer ${ADMIN_BEARER}")
+
 echo ""
-echo "--- Baseline security summary endpoint ---"
-code=$(smoke_request GET "${API_BASE}/api/admin/security-summary" "" "${AUTH_HDRS[@]}")
-if smoke_expect_codes "GET /api/admin/security-summary" "$code" "200 401 403"; then
+echo "--- Authenticated-positive check (integrator pass) ---"
+code=$(smoke_request GET "${API_BASE}/api/auth/me" "" "${AUTH_HDRS[@]}")
+if smoke_expect_codes "GET /api/auth/me with ADMIN_BEARER" "$code" "200"; then
     pass
 else
     fail
-fi
-
-if [ -z "$ADMIN_BEARER" ]; then
-    echo ""
-    echo "SKIP: Admin-positive route flow requires ADMIN_BEARER."
-    skip
     echo "=== Summary: ${PASSED} passed, ${FAILED} failed, ${SKIPPED} skipped ==="
-    [ "$FAILED" -eq 0 ] || exit 1
-    exit 0
+    exit 1
 fi
 
 echo ""
