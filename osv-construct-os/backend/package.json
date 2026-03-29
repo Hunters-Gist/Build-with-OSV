@@ -6,13 +6,18 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:learning": "node scripts/testQuoteLearning.js",
+    "optimize:quotes": "node scripts/optimizeQuotePrompts.js",
+    "import:quote-training": "node scripts/importQuoteTrainingData.js",
+    "smoke:validation": "bash scripts/smokeApiValidation.sh"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@supabase/supabase-js": "^2.100.1",
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -20,6 +25,8 @@
     "jsonwebtoken": "^9.0.3",
     "resend": "^6.9.4",
     "stripe": "^20.4.1",
-    "twilio": "^5.13.0"
+    "twilio": "^5.13.0",
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.2"
   }
 }
