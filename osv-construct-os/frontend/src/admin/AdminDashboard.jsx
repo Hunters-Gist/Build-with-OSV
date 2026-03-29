@@ -4,22 +4,22 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('import');
 
   return (
-    <div className="p-4 md:p-8 h-full min-h-screen bg-osv-bg text-osv-text relative overflow-hidden font-sans">
+    <div className="app-shell h-full text-osv-text relative overflow-hidden font-sans">
        {/* Ambient background glows */}
        <div className="absolute top-0 right-0 w-[60vw] h-[60vw] bg-osv-accent/5 rounded-full blur-[150px] pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
        
-       <div className="max-w-[1400px] mx-auto relative z-10">
-         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-white/5 pb-6">
+       <div className="app-container max-w-[1400px] relative z-10">
+         <div className="app-header md:flex-row md:justify-between md:items-end">
              <div>
-               <h1 className="text-4xl md:text-5xl font-heading font-medium text-osv-white tracking-widest uppercase mb-2">ADMINISTRATOR OS</h1>
-               <p className="text-osv-muted uppercase tracking-[0.1em] text-xs font-medium">System Configuration & Data Integrity Management</p>
+               <h1 className="app-title text-osv-white tracking-[0.12em] uppercase mb-2">Administrator OS</h1>
+               <p className="app-subtitle">System Configuration & Data Integrity Management</p>
              </div>
          </div>
          
-         <div className="flex gap-6 mb-8 border-b border-white/5 pb-px relative">
+         <div className="flex gap-3 sm:gap-6 mb-8 border-b border-white/5 pb-px relative overflow-x-auto">
            <button 
               onClick={() => setActiveTab('import')}
-              className={`font-heading text-lg uppercase tracking-[0.15em] px-2 py-3 transition-all relative ${activeTab === 'import' ? 'text-osv-accent' : 'text-osv-muted hover:text-osv-white'}`}
+              className={`font-heading text-fluid-base uppercase tracking-[0.15em] px-2 py-3 transition-all relative whitespace-nowrap ${activeTab === 'import' ? 'text-osv-accent' : 'text-osv-muted hover:text-osv-white'}`}
            >
               Data Import
               {activeTab === 'import' && (
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
            </button>
            <button 
               onClick={() => setActiveTab('users')}
-              className={`font-heading text-lg uppercase tracking-[0.15em] px-2 py-3 transition-all relative ${activeTab === 'users' ? 'text-osv-accent' : 'text-osv-muted hover:text-osv-white'}`}
+              className={`font-heading text-fluid-base uppercase tracking-[0.15em] px-2 py-3 transition-all relative whitespace-nowrap ${activeTab === 'users' ? 'text-osv-accent' : 'text-osv-muted hover:text-osv-white'}`}
            >
               Subbie Registry
               {activeTab === 'users' && (
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
          </div>
 
          {activeTab === 'import' && (
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
              <div className="bg-osv-panel/40 backdrop-blur-md border border-white/5 p-8 rounded-xl relative overflow-hidden group hover:border-osv-accent/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-300">
                <div className="absolute top-0 left-0 w-1 h-full bg-osv-accent/20 group-hover:bg-osv-accent transition-colors"></div>
                <h2 className="text-xl font-heading text-osv-white mb-3 uppercase tracking-widest font-medium">Migrate Subbies</h2>

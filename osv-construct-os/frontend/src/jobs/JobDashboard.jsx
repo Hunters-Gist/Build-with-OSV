@@ -75,22 +75,22 @@ export default function JobDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text p-4 md:p-8 font-sans relative overflow-hidden">
+    <div className="app-shell text-osv-text font-sans relative overflow-hidden">
       {/* Ambient background glows */}
       <div className="fixed top-[-10%] right-[-5%] w-[500px] h-[500px] bg-osv-accent/10 rounded-full blur-[120px] pointer-events-none"></div>
       
-      <div className="max-w-[1400px] mx-auto relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-osv-border pb-6">
+      <div className="app-container max-w-[1400px] relative z-10">
+          <div className="app-header md:flex-row md:justify-between md:items-center">
             <div>
-              <h1 className="font-heading font-medium text-4xl text-osv-white tracking-widest uppercase mb-2">Active Job Delivery</h1>
-              <p className="text-osv-muted uppercase tracking-[0.1em] text-xs font-medium">Assign OSV Forge Gamified Subbies & Track Site Progression State</p>
+              <h1 className="app-title text-osv-white tracking-[0.12em] uppercase mb-2">Active Job Delivery</h1>
+              <p className="app-subtitle">Assign OSV Forge Gamified Subbies & Track Site Progression State</p>
             </div>
             <Link to="/" className="mt-4 md:mt-0 px-6 py-3 bg-osv-panel/80 backdrop-blur-md border border-osv-border/60 hover:border-osv-accent/50 text-osv-white transition-all rounded uppercase tracking-[0.15em] text-xs font-semibold hover:shadow-[0_0_15px_rgba(245,158,11,0.1)] focus:outline-none focus:ring-1 focus:ring-osv-accent">Terminal Home</Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
             {['Posted', 'Assigned', 'In Progress', 'Completed'].map(statusPhase => (
-              <div key={statusPhase} className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-xl flex flex-col h-[75vh] shadow-2xl overflow-hidden relative group">
+              <div key={statusPhase} className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-xl flex flex-col h-[62vh] sm:h-[68vh] lg:h-[72vh] xl:h-[75vh] shadow-2xl overflow-hidden relative group">
                 {/* Column header */}
                 <div className="p-4 border-b border-white/5 bg-osv-bg/50 backdrop-blur-sm z-10 relative">
                   <h2 className="font-heading text-lg text-osv-white uppercase tracking-[0.15em] flex justify-between items-center font-medium">
@@ -104,13 +104,13 @@ export default function JobDashboard() {
                   {jobs.filter(j => j.status === statusPhase).map(job => (
                     <div key={job.id} className="group/card bg-osv-panel/80 backdrop-blur-md border border-white/5 p-5 rounded-lg hover:border-osv-accent/40 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] hover:-translate-y-1">
                       
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-osv-accent font-mono text-[10px] border border-osv-accent/20 px-2 py-1 rounded bg-osv-accent/5 tracking-wider">{job.job_num}</span>
-                        <span className="text-osv-muted uppercase tracking-widest text-[10px] font-semibold leading-none mt-1">{job.trade}</span>
+                      <div className="flex justify-between items-start mb-4 gap-2 min-w-0">
+                        <span className="text-osv-accent font-mono text-[10px] border border-osv-accent/20 px-2 py-1 rounded bg-osv-accent/5 tracking-wider whitespace-nowrap">{job.job_num}</span>
+                        <span className="text-osv-muted uppercase tracking-widest text-[10px] font-semibold leading-none mt-1 text-right wrap-break-word">{job.trade}</span>
                       </div>
                       
-                      <h3 className="font-medium font-heading text-osv-white text-lg uppercase tracking-wider leading-snug mb-2">{job.title}</h3>
-                      <p className="text-osv-muted text-xs mb-4 uppercase tracking-[0.1em] flex items-center gap-2 font-medium">
+                      <h3 className="font-medium font-heading text-osv-white text-fluid-lg uppercase tracking-wider leading-snug mb-2 wrap-break-word">{job.title}</h3>
+                      <p className="text-osv-muted text-fluid-xs mb-4 uppercase tracking-widest flex items-center gap-2 font-medium">
                         <svg className="w-3 h-3 text-osv-accent/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         {job.client_name}
                       </p>
@@ -139,7 +139,7 @@ export default function JobDashboard() {
 
                       {statusPhase === 'Assigned' && (
                         <div className="border-t border-white/5 pt-4 flex flex-col gap-3">
-                           <span className="text-emerald-400 font-semibold text-[10px] uppercase tracking-[0.1em] flex items-center justify-center gap-1.5 bg-emerald-400/10 border border-emerald-400/20 p-2.5 rounded">
+                           <span className="text-emerald-400 font-semibold text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 bg-emerald-400/10 border border-emerald-400/20 p-2.5 rounded wrap-break-word">
                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                              Dispatched to: {job.assigned_sub_name}
                            </span>
@@ -154,15 +154,15 @@ export default function JobDashboard() {
                              ACTIVE: {job.assigned_sub_name}
                            </div>
                            <div className="flex gap-2">
-                             <button className="flex-1 border border-osv-border/60 hover:border-osv-white text-osv-white text-[10px] font-bold py-3 rounded uppercase transition-colors tracking-[0.1em] bg-osv-bg/50">Upload Photo</button>
-                             <button onClick={() => updateStatus(job.id, 'Completed')} className="flex-[1.5] bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold py-3 rounded uppercase transition-all tracking-[0.1em] shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]">Mark Output Done</button>
+                             <button className="flex-1 border border-osv-border/60 hover:border-osv-white text-osv-white text-[10px] font-bold py-3 rounded uppercase transition-colors tracking-widest bg-osv-bg/50">Upload Photo</button>
+                             <button onClick={() => updateStatus(job.id, 'Completed')} className="flex-[1.5] bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold py-3 rounded uppercase transition-all tracking-widest shadow-[0_0_10px_rgba(16,185,129,0.1)] hover:shadow-[0_0_15px_rgba(16,185,129,0.2)]">Mark Output Done</button>
                            </div>
                         </div>
                       )}
                       
                       {statusPhase === 'Completed' && (
                         <div className="border-t border-white/5 pt-4">
-                           <span className="text-emerald-400 font-semibold text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5 justify-center bg-emerald-400/5 border border-emerald-400/10 p-2.5 rounded mb-3">
+                           <span className="text-emerald-400 font-semibold text-[10px] uppercase tracking-widest flex items-center gap-1.5 justify-center bg-emerald-400/5 border border-emerald-400/10 p-2.5 rounded mb-3 wrap-break-word">
                              <span className="text-osv-accent">★★★★★</span> Delivered by {job.assigned_sub_name}
                            </span>
                            <button className="w-full border border-osv-accent/40 text-osv-accent hover:bg-osv-accent hover:text-[#0f1115] text-[10px] font-bold py-3 rounded uppercase tracking-[0.15em] transition-all focus:outline-none focus:ring-1 focus:ring-osv-accent">Queue Client Invoice</button>
@@ -173,7 +173,7 @@ export default function JobDashboard() {
                   ))}
                 </div>
                 {/* Column subtly glowing bottom edge */}
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent"></div>
               </div>
             ))}
           </div>

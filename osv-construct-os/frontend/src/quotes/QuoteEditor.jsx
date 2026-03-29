@@ -239,14 +239,14 @@ export default function QuoteEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text p-6 md:p-10">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="app-shell text-osv-text">
+      <div className="app-container max-w-6xl space-y-4 md:space-y-6">
         <div className="bg-osv-panel/60 border border-white/5 rounded-xl p-6 flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-mono text-osv-muted tracking-wide">QUOTE REVISION WORKBENCH</p>
-            <h1 className="text-2xl font-heading text-osv-white mt-2">{quote.quote_num} — {quote.client_name || 'Client'}</h1>
+            <h1 className="app-title text-2xl text-osv-white mt-2 wrap-break-word">{quote.quote_num} — {quote.client_name || 'Client'}</h1>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 shrink-0">
             <Link to="/" className="h-10 px-4 border border-white/15 rounded-lg text-osv-white text-sm leading-10 hover:bg-white/5 transition-colors">
               Dashboard
             </Link>
@@ -338,7 +338,7 @@ export default function QuoteEditor() {
           </div>
         </div>
 
-        <div className="bg-osv-panel/60 border border-white/5 rounded-xl p-6 grid grid-cols-1 md:grid-cols-[280px_1fr_auto] gap-4 items-end">
+        <div className="bg-osv-panel/60 border border-white/5 rounded-xl p-6 grid grid-cols-1 lg:grid-cols-[280px_1fr_auto] gap-4 items-end">
           <div>
             <label className="text-[10px] font-mono text-osv-muted tracking-wide">EDIT REASON (REQUIRED)</label>
             <select
@@ -363,7 +363,7 @@ export default function QuoteEditor() {
           <button
             onClick={handleSaveRevision}
             disabled={saving}
-            className="h-12 px-6 bg-osv-accent text-[#0A0A0F] rounded-lg font-medium hover:brightness-110 transition-all disabled:opacity-60"
+            className="h-12 px-6 bg-osv-accent text-osv-bg rounded-lg font-medium hover:brightness-110 transition-all disabled:opacity-60"
           >
             {saving ? 'Saving...' : 'Save Revision'}
           </button>
@@ -392,9 +392,9 @@ export default function QuoteEditor() {
           <div className="space-y-3">
             {revisions.map((revision) => (
               <div key={revision.id} className="bg-osv-bg/50 border border-white/5 rounded-lg p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-osv-white">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm text-osv-white wrap-break-word">
                       {revision.edit_reason || 'unknown_reason'}
                       {revision.edit_notes ? ` — ${revision.edit_notes}` : ''}
                     </p>
@@ -447,11 +447,11 @@ export default function QuoteEditor() {
                         )}
                         {(revisionDeltasById[revision.id] || []).map((delta) => (
                           <div key={delta.id} className="bg-osv-bg/70 border border-white/5 rounded-md p-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs text-osv-white">
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <p className="text-xs text-osv-white min-w-0 wrap-break-word">
                                 {delta.item_name || 'Unnamed item'} <span className="text-osv-muted">({delta.category || 'Unknown'})</span>
                               </p>
-                              <span className="text-[10px] font-mono uppercase tracking-wide text-osv-accent">
+                              <span className="text-[10px] font-mono uppercase tracking-wide text-osv-accent whitespace-nowrap">
                                 {delta.change_type}
                               </span>
                             </div>

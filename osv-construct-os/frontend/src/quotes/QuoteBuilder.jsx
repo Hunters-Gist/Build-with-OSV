@@ -996,17 +996,17 @@ export default function QuoteBuilder() {
   };
 
   return (
-    <div className="p-6 md:p-10 min-h-screen bg-osv-bg text-osv-text relative overflow-hidden">
+    <div className="app-shell text-osv-text relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-osv-accent/5 rounded-full blur-[150px] pointer-events-none"></div>
 
-      <div className="relative z-10 max-w-[1600px] mx-auto h-[calc(100vh-80px)] min-h-[700px] flex flex-col">
+      <div className="relative z-10 app-container max-w-[1600px] lg:h-[calc(100vh-80px)] lg:min-h-[700px] flex flex-col">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-osv-panel/60 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-lg gap-4">
-          <h1 className="text-3xl md:text-4xl font-heading font-medium text-osv-white tracking-tight flex items-center gap-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 bg-osv-panel/60 backdrop-blur-md p-4 sm:p-6 rounded-2xl border border-white/5 shadow-lg gap-4">
+          <h1 className="app-title text-3xl md:text-4xl text-osv-white tracking-tight flex items-center gap-3">
             Quote Engine
             <span className="text-xs font-mono bg-osv-accent/10 text-osv-accent border border-osv-accent/20 px-2 py-1 rounded-full tracking-wide">AI POWERED</span>
           </h1>
-          <div className="flex gap-3 text-[10px] sm:text-xs font-mono tracking-widest bg-osv-bg/50 px-4 py-2 rounded-lg border border-white/5">
+          <div className="flex gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono tracking-widest bg-osv-bg/50 px-3 sm:px-4 py-2 rounded-lg border border-white/5 overflow-x-auto">
             {stepLabels.map((s, i) => (
               <React.Fragment key={s.num}>
                 {i > 0 && <span className="text-white/10">/</span>}
@@ -1019,9 +1019,9 @@ export default function QuoteBuilder() {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-8 flex-1 min-h-0">
           {/* Left Panel */}
-          <div className="bg-osv-panel/60 backdrop-blur-md border border-white/5 p-8 rounded-2xl flex flex-col overflow-hidden shadow-xl relative">
+          <div className="bg-osv-panel/60 backdrop-blur-md border border-white/5 p-4 sm:p-6 md:p-8 rounded-2xl flex flex-col overflow-hidden shadow-xl relative">
             <h2 className="text-xl font-heading font-medium text-osv-white tracking-wide border-b border-white/5 pb-4 mb-6 shrink-0 flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-osv-accent"></div>
               {getLeftTitle()}
@@ -1032,7 +1032,7 @@ export default function QuoteBuilder() {
           </div>
 
           {/* Right Panel */}
-          <div className="bg-osv-panel/60 backdrop-blur-md border border-white/5 p-8 rounded-2xl relative flex flex-col overflow-hidden shadow-xl">
+          <div className="bg-osv-panel/60 backdrop-blur-md border border-white/5 p-4 sm:p-6 md:p-8 rounded-2xl relative flex flex-col overflow-hidden shadow-xl">
             <h2 className="text-xl font-heading font-medium text-osv-white tracking-wide border-b border-white/5 pb-4 mb-6 shrink-0 flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-osv-accent"></div>
               Analysis & Output
@@ -1181,12 +1181,12 @@ export default function QuoteBuilder() {
                             </div>
                           ) : null;
                         })()}
-                        <div className="flex justify-between items-center">
-                          <div className="mr-4">
-                            <p className="text-osv-white font-medium text-sm mb-1">{item.name}</p>
-                            <p className="text-xs font-mono text-osv-muted">{item.qty} {item.unit} @ ${item.unit_price}</p>
+                        <div className="flex justify-between items-center gap-3 min-w-0">
+                          <div className="min-w-0 mr-4">
+                            <p className="text-osv-white font-medium text-sm mb-1 wrap-break-word">{item.name}</p>
+                            <p className="text-xs font-mono text-osv-muted truncate">{item.qty} {item.unit} @ ${item.unit_price}</p>
                           </div>
-                          <p className="text-osv-accent font-medium font-mono">${item.total.toFixed(2)}</p>
+                          <p className="text-osv-accent font-medium font-mono whitespace-nowrap">${item.total.toFixed(2)}</p>
                         </div>
                         {item.category === 'Materials' && Array.isArray(quoteResult?.pricing_audit?.materialAudits) && (
                           (() => {

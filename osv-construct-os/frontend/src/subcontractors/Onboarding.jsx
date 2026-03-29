@@ -31,17 +31,17 @@ export default function SubcontractorOnboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text p-4 md:p-8 font-sans flex justify-center items-start md:items-center relative overflow-hidden">
+    <div className="app-shell text-osv-text font-sans flex justify-center items-start md:items-center relative overflow-hidden">
       {/* Ambient background glows */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-osv-accent/5 rounded-full blur-[180px] pointer-events-none"></div>
       
-      <div className="bg-osv-panel/40 backdrop-blur-xl border border-white/5 p-8 md:p-10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] max-w-3xl w-full relative z-10 group overflow-hidden">
+      <div className="bg-osv-panel/40 backdrop-blur-xl border border-white/5 p-5 sm:p-7 md:p-10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] max-w-3xl w-full relative z-10 group overflow-hidden">
         {/* Top subtle highlight */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent"></div>
 
         <div className="text-center mb-10">
-          <h1 className="font-heading font-medium text-3xl md:text-4xl text-osv-white tracking-widest uppercase mb-3">Initialize Profile</h1>
-          <p className="text-osv-muted tracking-[0.1em] uppercase text-[10px] md:text-xs">
+          <h1 className="app-title text-3xl md:text-4xl text-osv-white tracking-[0.12em] uppercase mb-3">Initialize Profile</h1>
+          <p className="app-subtitle leading-relaxed">
             Connect your business entity to the OSV gamified pipeline. Elite subbies are algorithmically rewarded with exclusive fee reductions and active "Apex Crown" badge assignments.
           </p>
         </div>
@@ -89,7 +89,7 @@ export default function SubcontractorOnboarding() {
             </div>
             <div>
               <label className="block text-osv-muted uppercase tracking-[0.15em] text-[10px] mb-2 font-semibold">Liability EXP Date</label>
-              <input type="date" required onChange={e => setFormData({...formData, insurance_expiry: e.target.value})} className="w-full bg-osv-bg/60 border border-white/10 rounded-lg p-3 text-osv-white text-sm focus:border-osv-accent focus:bg-osv-bg/80 outline-none transition-all focus:ring-1 focus:ring-osv-accent/30 shadow-inner [color-scheme:dark]" />
+              <input type="date" required onChange={e => setFormData({...formData, insurance_expiry: e.target.value})} className="w-full bg-osv-bg/60 border border-white/10 rounded-lg p-3 text-osv-white text-sm focus:border-osv-accent focus:bg-osv-bg/80 outline-none transition-all focus:ring-1 focus:ring-osv-accent/30 shadow-inner scheme-dark" />
             </div>
           </div>
 
@@ -116,8 +116,8 @@ export default function SubcontractorOnboarding() {
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-osv-accent text-[#0f1115] font-bold py-4 mt-8 rounded-lg uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:bg-osv-accent/90 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all focus:outline-none focus:ring-2 focus:ring-osv-accent/50 relative overflow-hidden group/btn">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]"></div>
+          <button type="submit" className="w-full bg-osv-accent text-osv-bg font-bold py-4 mt-8 rounded-lg uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(245,158,11,0.2)] hover:bg-osv-accent/90 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all focus:outline-none focus:ring-2 focus:ring-osv-accent/50 relative overflow-hidden group/btn">
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite]"></div>
             <span className="relative">Join Platform Architecture</span>
           </button>
         </form>

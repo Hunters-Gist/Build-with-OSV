@@ -171,14 +171,14 @@ export default function ClientPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text font-sans relative overflow-hidden">
+    <div className="app-shell text-osv-text font-sans relative overflow-hidden">
       {/* Ambient background glows */}
       <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-osv-accent/5 rounded-full blur-[150px] pointer-events-none"></div>
 
       {/* Header */}
-      <div className="bg-osv-panel/80 backdrop-blur-xl border-b border-white/5 px-8 py-5 flex justify-between items-center sticky top-0 z-50 shadow-lg">
+      <div className="bg-osv-panel/80 backdrop-blur-xl border-b border-white/5 px-4 sm:px-6 md:px-8 py-4 md:py-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sticky top-0 z-50 shadow-lg">
         <div>
-          <h1 className="font-heading font-medium text-3xl text-osv-white tracking-widest leading-none">
+          <h1 className="app-title text-2xl sm:text-3xl text-osv-white tracking-[0.12em] leading-none">
             Build With <span className="text-osv-accent">OSV</span>
           </h1>
           <p className="text-[10px] text-osv-muted uppercase tracking-[0.2em] mt-2 font-medium">
@@ -192,10 +192,10 @@ export default function ClientPortal() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto p-4 md:p-8 relative z-10">
+      <div className="app-container max-w-4xl p-2 sm:p-3 md:p-6 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-6 border-b border-white/5">
-          <div className="mb-4 md:mb-0">
-            <h2 className="text-3xl md:text-4xl font-heading text-osv-white tracking-widest uppercase mb-3 font-medium leading-tight">
+          <div className="mb-4 md:mb-0 min-w-0">
+            <h2 className="app-title text-3xl md:text-4xl text-osv-white tracking-[0.12em] uppercase mb-3 font-medium leading-tight wrap-break-word">
               {quote.summary || quote.trade || 'Quote'}
             </h2>
             <p className="text-osv-muted flex items-center gap-2 text-sm uppercase tracking-widest">
@@ -204,7 +204,7 @@ export default function ClientPortal() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-osv-accent/10 border border-osv-accent/40 text-osv-accent px-4 py-1.5 rounded text-[10px] uppercase tracking-[0.15em] font-black flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+            <div className="bg-osv-accent/10 border border-osv-accent/40 text-osv-accent px-3 py-1.5 rounded text-[10px] uppercase tracking-[0.15em] font-black flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.15)] whitespace-nowrap">
               <div className="w-1.5 h-1.5 rounded-full bg-osv-accent animate-pulse"></div>
               {prettyStatus(quote.status)}
             </div>
@@ -217,14 +217,14 @@ export default function ClientPortal() {
           </div>
           <div className="p-6 space-y-4">
             {lineItems.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm md:text-base border-b border-white/5 pb-3">
-                <span className="text-osv-text/90 tracking-wide">{item.name}</span>
-                <span className="text-osv-white font-mono bg-osv-bg/50 px-2 py-1 rounded border border-white/5">${Number(item.total || 0).toFixed(2)}</span>
+              <div key={idx} className="flex justify-between items-center text-sm md:text-base border-b border-white/5 pb-3 gap-3 min-w-0">
+                <span className="min-w-0 text-osv-text/90 tracking-wide wrap-break-word">{item.name}</span>
+                <span className="text-osv-white font-mono bg-osv-bg/50 px-2 py-1 rounded border border-white/5 whitespace-nowrap">${Number(item.total || 0).toFixed(2)}</span>
               </div>
             ))}
             
             <div className="flex justify-between items-end pt-6">
-              <span className="font-heading tracking-[0.1em] text-osv-muted uppercase text-[10px] font-semibold">Total Investment</span>
+              <span className="font-heading tracking-widest text-osv-muted uppercase text-[10px] font-semibold">Total Investment</span>
               <span className="text-osv-accent font-heading text-4xl leading-none shadow-osv-accent/20 drop-shadow-md tracking-wider">${total.toFixed(2)}</span>
             </div>
           </div>
@@ -241,12 +241,12 @@ export default function ClientPortal() {
           </div>
           <div className="p-6 bg-osv-panel/30">
             {paymentMilestones.map((ms, idx) => (
-               <div key={idx} className="flex justify-between items-center border-l-2 border-osv-accent/60 hover:border-osv-accent pl-4 mb-5 last:mb-0 transition-colors group">
-                 <div>
-                   <p className="text-osv-white font-medium text-sm md:text-base group-hover:text-osv-accent transition-colors">{ms.stage}</p>
+               <div key={idx} className="flex justify-between items-center border-l-2 border-osv-accent/60 hover:border-osv-accent pl-4 mb-5 last:mb-0 transition-colors group gap-3 min-w-0">
+                 <div className="min-w-0">
+                   <p className="text-osv-white font-medium text-sm md:text-base group-hover:text-osv-accent transition-colors wrap-break-word">{ms.stage}</p>
                    <p className="text-[10px] text-osv-muted uppercase tracking-[0.15em] font-semibold mt-1">Milestone {idx + 1} <span className="mx-2 opacity-30">•</span> {ms.split}</p>
                  </div>
-                 <div className="text-right">
+                 <div className="text-right shrink-0">
                    <p className="text-osv-white font-mono text-lg group-hover:text-osv-accent transition-colors">${ms.amount.toFixed(2)}</p>
                  </div>
                </div>
@@ -263,7 +263,7 @@ export default function ClientPortal() {
         {/* Action Bar */}
         {(quote.status === 'deposit_paid' || quote.status === 'won') ? (
           <div className="bg-emerald-500/10 border border-emerald-500/30 p-8 rounded-xl text-center shadow-[0_0_30px_rgba(16,185,129,0.15)] backdrop-blur-md relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent"></div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-transparent via-emerald-400 to-transparent"></div>
             <h3 className="text-emerald-400 font-heading text-2xl uppercase tracking-widest font-medium mb-3 flex justify-center items-center gap-3">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-400/20 border border-emerald-400/40">
                 <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
@@ -282,7 +282,7 @@ export default function ClientPortal() {
             <button
               onClick={acceptQuote}
               disabled={actionLoading}
-              className="flex-[2] bg-osv-accent text-[#0f1115] font-bold py-5 rounded uppercase tracking-[0.15em] text-sm md:text-base hover:brightness-110 transition-all disabled:opacity-60"
+              className="flex-2 bg-osv-accent text-[#0f1115] font-bold py-5 rounded uppercase tracking-[0.15em] text-sm md:text-base hover:brightness-110 transition-all disabled:opacity-60"
             >
               {actionLoading ? 'Saving...' : 'Accept Quote'}
             </button>
@@ -299,7 +299,7 @@ export default function ClientPortal() {
             <button
               onClick={payDeposit}
               disabled={actionLoading}
-              className="flex-[2] relative overflow-hidden group bg-emerald-500 text-[#0f1115] font-bold py-5 rounded uppercase tracking-[0.15em] text-sm md:text-base hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-60"
+              className="flex-2 relative overflow-hidden group bg-emerald-500 text-[#0f1115] font-bold py-5 rounded uppercase tracking-[0.15em] text-sm md:text-base hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-60"
             >
               <span className="relative flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>

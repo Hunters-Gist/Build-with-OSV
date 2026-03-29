@@ -43,18 +43,18 @@ export default function SubcontractorProfile() {
 
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text p-4 md:p-8 font-sans relative overflow-hidden">
+    <div className="app-shell text-osv-text font-sans relative overflow-hidden">
       {/* Ambient background glows */}
       <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-osv-accent/5 rounded-full blur-[150px] pointer-events-none"></div>
       
-      <div className="max-w-5xl mx-auto relative z-10">
+      <div className="app-container max-w-5xl relative z-10">
         
         {/* Profile Header Block */}
         <div className="bg-osv-panel/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden mb-8 shadow-2xl relative group">
            {/* Cover Photo */}
            <div className="h-48 md:h-64 bg-osv-bg/50 relative overflow-hidden">
              <img src="https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&q=80" alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay group-hover:opacity-50 transition-opacity duration-700 blur-[2px] group-hover:blur-none" />
-             <div className="absolute inset-0 bg-gradient-to-t from-osv-panel via-transparent to-osv-bg/50"></div>
+             <div className="absolute inset-0 bg-linear-to-t from-osv-panel via-transparent to-osv-bg/50"></div>
              
              <div className="absolute top-6 right-6 flex flex-col md:flex-row gap-3">
                 {isApex && (
@@ -74,10 +74,10 @@ export default function SubcontractorProfile() {
                 <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150" alt="Profile" className="object-cover w-full h-full hover:scale-110 transition-transform duration-500" />
               </div>
               
-              <div className="ml-28 md:ml-40 flex flex-col md:flex-row justify-between items-start mt-4 md:mt-2">
+              <div className="ml-20 sm:ml-24 md:ml-40 flex flex-col md:flex-row justify-between items-start mt-4 md:mt-2 min-w-0">
                  <div>
-                    <h1 className="text-3xl md:text-4xl font-heading font-medium text-osv-white tracking-widest uppercase leading-none">{subbie.name}</h1>
-                    <p className="text-sm md:text-md text-osv-accent font-mono tracking-[0.15em] uppercase mt-2 bg-osv-accent/10 border border-osv-accent/20 px-3 py-1 rounded inline-block">{subbie.business}</p>
+                    <h1 className="app-title text-3xl md:text-4xl font-medium text-osv-white tracking-[0.12em] uppercase leading-none wrap-break-word">{subbie.name}</h1>
+                    <p className="text-sm md:text-md text-osv-accent font-mono tracking-[0.15em] uppercase mt-2 bg-osv-accent/10 border border-osv-accent/20 px-3 py-1 rounded inline-block wrap-break-word">{subbie.business}</p>
                  </div>
                  <div className="mt-6 md:mt-0 text-left md:text-right border-t border-white/5 pt-4 md:pt-0 md:border-t-0 w-full md:w-auto">
                     <div className="flex items-baseline md:justify-end gap-1 font-heading">
@@ -148,7 +148,7 @@ export default function SubcontractorProfile() {
                  <h2 className="text-lg md:text-xl font-heading text-osv-white tracking-widest uppercase border-b border-white/5 pb-4 mb-5 font-medium">Mission Profile</h2>
                  <p className="text-osv-text/90 leading-relaxed whitespace-pre-wrap text-sm md:text-base">{subbie.bio}</p>
                  <div className="mt-8 flex flex-col sm:flex-row gap-4 border-t border-white/5 pt-6">
-                    <button className="flex-1 bg-osv-accent/10 border border-osv-accent/50 text-osv-accent font-bold py-4 px-4 rounded-lg transition-all hover:bg-osv-accent hover:text-[#0f1115] hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] uppercase tracking-[0.15em] text-xs text-center focus:outline-none focus:ring-1 focus:ring-osv-accent">
+                    <button className="flex-1 bg-osv-accent/10 border border-osv-accent/50 text-osv-accent font-bold py-4 px-4 rounded-lg transition-all hover:bg-osv-accent hover:text-osv-bg hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] uppercase tracking-[0.15em] text-xs text-center focus:outline-none focus:ring-1 focus:ring-osv-accent">
                        Direct Comms Line
                     </button>
                     <button className="flex-1 bg-osv-bg/50 border border-white/10 text-osv-white font-bold py-4 px-4 rounded-lg transition-all hover:border-white/40 hover:bg-white/5 uppercase tracking-[0.15em] text-xs text-center shadow-inner focus:outline-none focus:ring-1 focus:ring-white/30">
@@ -166,7 +166,7 @@ export default function SubcontractorProfile() {
                     {subbie.gallery.map(img => (
                        <div key={img} className="bg-osv-bg aspect-video rounded-lg overflow-hidden group relative cursor-pointer shadow-lg border border-white/5 hover:border-osv-accent/50 transition-all duration-300">
                           <img src={`https://images.unsplash.com/photo-${1500000000000 + img}?auto=format&fit=crop&w=600`} alt="Project" className="object-cover w-full h-full opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#0f1115]/90 via-[#0f1115]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+                          <div className="absolute inset-0 bg-linear-to-t from-[#0f1115]/90 via-[#0f1115]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
                              <span className="text-osv-white font-heading tracking-widest text-sm uppercase translate-y-4 group-hover:translate-y-0 transition-transform duration-300 border border-white/10 bg-osv-panel/80 backdrop-blur-md px-4 py-2 rounded-full">Timber Decking • ${8 + img}k</span>
                           </div>
                        </div>

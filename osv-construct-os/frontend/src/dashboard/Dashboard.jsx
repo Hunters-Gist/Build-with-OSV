@@ -214,20 +214,20 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-osv-bg text-osv-text font-sans flex flex-col items-center">
-      <div className="w-full max-w-[1400px] px-6 py-8 md:px-10 md:py-12 flex flex-col gap-8 relative z-10">
+    <div className="app-shell text-osv-text font-sans">
+      <div className="app-container w-full px-1 py-2 sm:px-2 md:px-3 md:py-4 flex flex-col gap-6 md:gap-8 relative z-10">
 
         {/* HEADER */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-white/5 gap-4">
+        <header className="app-header md:flex-row md:justify-between md:items-center">
           <div>
-            <h1 className="font-heading font-medium tracking-tight text-2xl md:text-3xl text-osv-white leading-none">
+            <h1 className="app-title tracking-tight text-osv-white leading-none">
               Build With <span className="text-osv-accent">OSV</span>
             </h1>
-            <p className="text-osv-muted text-[10px] md:text-xs tracking-[0.1em] uppercase mt-1">
+            <p className="app-subtitle mt-1">
               Operating System for quoting, delivery, and project control
             </p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
             <button className="text-osv-muted hover:text-osv-white transition-colors relative">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               {alerts.length > 0 && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-osv-accent rounded-full border border-osv-bg"></div>}
@@ -242,17 +242,17 @@ export default function Dashboard() {
         </header>
 
         {/* ROW 1: HERO & QUOTE SUMMARY */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-          <div className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-8 md:p-10 relative overflow-hidden flex flex-col justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] group">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 md:gap-6">
+          <div className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-5 sm:p-7 md:p-10 relative overflow-hidden flex flex-col justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] group">
             <div className="absolute inset-0 bg-linear-to-br from-osv-accent/5 to-transparent opacity-50 pointer-events-none"></div>
             <div className="relative z-10 w-full lg:w-4/5">
-              <h2 className="font-heading font-medium text-4xl md:text-5xl text-osv-white tracking-widest uppercase leading-[1.1] mb-4">
+              <h2 className="app-title text-3xl sm:text-4xl md:text-5xl text-osv-white tracking-[0.12em] uppercase leading-[1.1] mb-4">
                 Create Intelligent Quote
               </h2>
-              <p className="text-osv-muted text-sm md:text-base leading-relaxed mb-8 max-w-xl">
+              <p className="text-osv-muted text-fluid-base leading-relaxed mb-6 md:mb-8 max-w-xl">
                 Generate accurate construction quotes from plans, scope, and project details in minutes.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 <Link to="/quotes/new" className="inline-flex items-center justify-center bg-osv-accent text-osv-bg font-bold h-12 px-8 rounded-lg uppercase tracking-widest text-sm hover:brightness-110 hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all duration-300 active:scale-[0.98]">
                   New Quote
                 </Link>
@@ -296,7 +296,7 @@ export default function Dashboard() {
         </div>
 
         {/* ROW 2: KPI STRIP — LIVE */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
            {kpiStrip.map((kpi, idx) => (
              <div key={idx} className="bg-osv-panel/30 border border-white/5 rounded-xl p-4 flex flex-col justify-center hover:bg-osv-panel/50 hover:border-white/10 transition-colors cursor-default shadow-sm group">
                <span className="text-[10px] uppercase tracking-widest text-osv-muted font-semibold mb-1 group-hover:text-osv-white transition-colors">{kpi.label}</span>
@@ -307,7 +307,7 @@ export default function Dashboard() {
         </div>
 
         {/* ROW 3: WORKFLOW MODULES — LIVE */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4 mt-2">
           <div className="bg-osv-bg border border-osv-border p-5 rounded-xl flex flex-col transition-all hover:border-white/20 hover:shadow-lg group">
             <h3 className="font-heading text-sm text-osv-white uppercase tracking-widest mb-1 group-hover:text-osv-accent transition-colors">Pipeline</h3>
             <p className="text-[10px] text-osv-muted uppercase tracking-widest leading-relaxed mb-4 h-8">Track incoming leads and job opportunities</p>
@@ -360,7 +360,7 @@ export default function Dashboard() {
         </div>
 
         {/* ROW 4: LIVE OPERATIONS AREA */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-2 md:mt-4">
 
           {/* Left Column */}
           <div className="flex flex-col gap-6">
@@ -371,15 +371,15 @@ export default function Dashboard() {
                 {recentQuotes.length === 0 ? (
                   <p className="text-osv-muted text-xs font-mono py-4 text-center">No quotes yet</p>
                 ) : recentQuotes.map(q => (
-                  <div key={q.quote_num} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 -mx-2 px-2 rounded transition-colors">
-                     <div className="flex flex-col">
+                  <div key={q.quote_num} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] items-center gap-2 sm:gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 -mx-2 px-2 rounded transition-colors">
+                     <div className="min-w-0 flex flex-col">
                        <span className="text-sm font-medium text-osv-white truncate">{q.summary || q.trade || 'Untitled'}</span>
                        <span className="text-[10px] text-osv-muted font-mono">{q.quote_num}</span>
                      </div>
-                     <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded border ${statusStyle(q.status)}`}>{q.status}</span>
-                     <span className="text-xs font-mono text-osv-white">${(q.final_client_quote || 0).toLocaleString()}</span>
-                     <span className="text-[10px] text-osv-muted w-12 text-right">{timeAgo(q.created_at)}</span>
-                     <Link to={`/quotes/${q.id}/edit`} className="text-[10px] text-osv-accent uppercase tracking-wide hover:underline text-right">
+                     <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded border whitespace-nowrap ${statusStyle(q.status)}`}>{q.status}</span>
+                     <span className="text-xs font-mono text-osv-white whitespace-nowrap">${(q.final_client_quote || 0).toLocaleString()}</span>
+                     <span className="text-[10px] text-osv-muted w-12 text-right whitespace-nowrap">{timeAgo(q.created_at)}</span>
+                     <Link to={`/quotes/${q.id}/edit`} className="text-[10px] text-osv-accent uppercase tracking-wide hover:underline text-right whitespace-nowrap">
                        Edit
                      </Link>
                   </div>
@@ -397,11 +397,11 @@ export default function Dashboard() {
                   const issuedTs = q.issued_at || q.sent_at;
                   const isOverdue = Boolean(q.is_overdue);
                   return (
-                    <div key={q.quote_num} className="flex items-start gap-3">
+                    <div key={q.quote_num} className="flex items-start gap-3 min-w-0">
                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${isOverdue ? 'bg-osv-red' : 'bg-osv-accent animate-pulse'}`}></div>
-                       <div>
-                          <div className="text-sm text-osv-white font-medium">{q.quote_num} — {q.client_name}</div>
-                          <div className={`text-[10px] uppercase tracking-wider mt-1 ${isOverdue ? 'text-osv-red/80' : 'text-osv-muted'}`}>
+                       <div className="min-w-0">
+                          <div className="text-sm text-osv-white font-medium wrap-break-word">{q.quote_num} — {q.client_name}</div>
+                          <div className={`text-[10px] uppercase tracking-wider mt-1 wrap-break-word ${isOverdue ? 'text-osv-red/80' : 'text-osv-muted'}`}>
                             {isOverdue ? `Overdue • Issued ${timeAgo(issuedTs)}` : `Awaiting • Issued ${timeAgo(issuedTs)}`}
                             {q.final_client_quote ? ` • $${q.final_client_quote.toLocaleString()}` : ''}
                           </div>
@@ -423,7 +423,7 @@ export default function Dashboard() {
                       <span className="text-xs font-mono text-osv-accent">{q.quote_num}</span>
                       <span className="text-xs text-emerald-400">${(q.final_client_quote || 0).toLocaleString()}</span>
                     </div>
-                    <div className="text-xs text-osv-white mb-3">{q.client_name || 'Client'} — {q.summary || 'Quote ready for handoff'}</div>
+                    <div className="text-xs text-osv-white mb-3 wrap-break-word">{q.client_name || 'Client'} — {q.summary || 'Quote ready for handoff'}</div>
                     <button
                       onClick={() => handleCreateJobFromDeposit(q)}
                       disabled={handoffLoadingId === q.id}
@@ -449,9 +449,9 @@ export default function Dashboard() {
                   const track = jobTrackInfo(j);
                   return (
                     <div key={j.job_num} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/2 -mx-2 px-2 rounded transition-colors">
-                       <div className="flex flex-col truncate pr-4">
+                       <div className="min-w-0 flex flex-col pr-4">
                          <span className="text-sm font-medium text-osv-white truncate">{j.title}</span>
-                         <span className="text-[10px] text-osv-muted uppercase tracking-wider mt-0.5">
+                         <span className="text-[10px] text-osv-muted uppercase tracking-wider mt-0.5 truncate">
                            {j.status}{j.assigned_sub_name ? ` • ${j.assigned_sub_name}` : ''}{j.due_date ? ` • Due ${j.due_date}` : ''}
                          </span>
                        </div>
@@ -475,7 +475,7 @@ export default function Dashboard() {
                 {alerts.length === 0 ? (
                   <li className="text-osv-muted font-mono text-center py-4">All clear — no active alerts</li>
                 ) : alerts.map((alert, i) => (
-                  <li key={i} className="flex items-start gap-2">
+                  <li key={i} className="flex items-start gap-2 wrap-break-word">
                     <span className={`font-bold ${alert.type === 'danger' ? 'text-osv-red' : 'text-osv-accent'}`}>&bull;</span>
                     {alert.message}
                   </li>
@@ -580,8 +580,8 @@ export default function Dashboard() {
                   <ul className="space-y-2">
                     {portalAuditEvents.map((event) => (
                       <li key={event.id} className="text-xs border-b border-white/5 pb-2 last:border-b-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-osv-white font-medium uppercase tracking-wide">{event.action}</span>
+                        <div className="flex items-center justify-between gap-3 min-w-0">
+                          <span className="text-osv-white font-medium uppercase tracking-wide truncate">{event.action}</span>
                           <span className={`text-[10px] uppercase ${
                             event.outcome === 'success' || event.outcome === 'idempotent'
                               ? 'text-emerald-400'
@@ -606,8 +606,8 @@ export default function Dashboard() {
                   <ul className="space-y-2">
                     {securityAuditEvents.map((event) => (
                       <li key={event.id} className="text-xs border-b border-white/5 pb-2 last:border-b-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-osv-white font-medium uppercase tracking-wide">
+                        <div className="flex items-center justify-between gap-3 min-w-0">
+                          <span className="text-osv-white font-medium uppercase tracking-wide truncate">
                             {event.source}:{event.event_type}
                           </span>
                           <span className={`text-[10px] uppercase ${

@@ -19,10 +19,113 @@
 }
 
 @layer base {
+  :root {
+    --app-space-1: clamp(0.75rem, 1.4vw, 1rem);
+    --app-space-2: clamp(1rem, 2vw, 1.5rem);
+    --app-space-3: clamp(1.25rem, 2.6vw, 2rem);
+  }
+
   body {
     background-color: var(--color-osv-bg);
     color: var(--color-osv-text);
     background-image: radial-gradient(ellipse at top, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
     background-attachment: fixed;
+    font-size: clamp(14px, 0.24vw + 13px, 16px);
+    line-height: 1.45;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    line-height: 1.15;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 2.8vw, 2.9rem);
+  }
+
+  h2 {
+    font-size: clamp(1.2rem, 1.9vw, 2rem);
+  }
+
+  h3 {
+    font-size: clamp(1rem, 1.3vw, 1.35rem);
+  }
+
+  p,
+  li,
+  input,
+  select,
+  textarea,
+  button {
+    font-size: clamp(0.83rem, 0.3vw + 0.74rem, 1rem);
+  }
+}
+
+@layer components {
+  .app-shell {
+    min-height: 100vh;
+    background-color: var(--color-osv-bg);
+    color: var(--color-osv-text);
+    padding: var(--app-space-1);
+  }
+
+  .app-container {
+    width: min(1400px, 100%);
+    margin-inline: auto;
+  }
+
+  .app-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: var(--app-space-2);
+    margin-bottom: var(--app-space-2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .app-title {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-wrap: balance;
+  }
+
+  .app-subtitle {
+    color: var(--color-osv-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: clamp(0.64rem, 0.2vw + 0.58rem, 0.76rem);
+  }
+
+  .app-panel {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.9rem;
+    background: rgba(26, 26, 36, 0.45);
+    backdrop-filter: blur(12px);
+  }
+}
+
+@layer utilities {
+  .text-fluid-xs {
+    font-size: clamp(0.66rem, 0.18vw + 0.62rem, 0.78rem);
+  }
+
+  .text-fluid-sm {
+    font-size: clamp(0.8rem, 0.25vw + 0.74rem, 0.95rem);
+  }
+
+  .text-fluid-base {
+    font-size: clamp(0.9rem, 0.3vw + 0.8rem, 1.05rem);
+  }
+
+  .text-fluid-lg {
+    font-size: clamp(1.05rem, 0.5vw + 0.9rem, 1.35rem);
+  }
+
+  .safe-scroll-y {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
