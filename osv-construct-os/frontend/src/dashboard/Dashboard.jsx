@@ -1,8 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const API = import.meta.env.VITE_API_URL || 'https://osv-construct-backend.onrender.com';
+
+async function fetchDashboardBundle({ auditWindowMs, auditOutcomeFilter }) {
+  const now = Date.now();
+  const fromTs = now - auditWindowMs;
+  const auditFilterParams = {
+    limit: 8,
+    from: fromTs,
+    to: now
+  };
+  if (auditOutcomeFilter !== 'all') {
+    auditFilterParams.outcome = auditOutcomeFilter;
+  }
+
+  const [dashboardResult, portalAuditResult, securityAuditResult, securitySummaryResult, trainingStatusResult] = await Promise.allSettled([
+    axios.get(`${API}/api/dashboard`),
+    axios.get(`${API}/api/admin/portal-audit`, { params: auditFilterParams }),
+    axios.get(`${API}/api/admin/security-audit`, { params: auditFilterParams }),
+    axios.get(`${API}/api/admin/security-summary`),
+    axios.get(`${API}/api/admin/quote-training/status`)
+  ]);
+
+  if (dashboardResult.status !== 'fulfilled') {
+    throw new Error('Failed to load dashboard');
+  }
+
+  return {
+    data: dashboardResult.value.data?.data || null,
+    portalAuditEvents: portalAuditResult.status === 'fulfilled' ? (portalAuditResult.value.data?.data || []) : [],
+    portalAuditError: portalAuditResult.status === 'fulfilled' ? null : 'Portal audit unavailable',
+    securityAuditEvents: securityAuditResult.status === 'fulfilled' ? (securityAuditResult.value.data?.data || []) : [],
+    securityAuditError: securityAuditResult.status === 'fulfilled' ? null : 'Security audit unavailable',
+    securitySummary: securitySummaryResult.status === 'fulfilled' ? (securitySummaryResult.value.data?.data || null) : null,
+    securitySummaryError: securitySummaryResult.status === 'fulfilled' ? null : 'Security summary unavailable',
+    trainingStatus: trainingStatusResult.status === 'fulfilled' ? (trainingStatusResult.value.data?.data || null) : null,
+    trainingStatusError: trainingStatusResult.status === 'fulfilled' ? null : 'Training status unavailable'
+  };
+}
 
 function timeAgo(ms) {
   if (!ms) return '';
@@ -37,15 +75,7 @@ function jobTrackInfo(job) {
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [portalAuditEvents, setPortalAuditEvents] = useState([]);
-  const [securityAuditEvents, setSecurityAuditEvents] = useState([]);
-  const [securitySummary, setSecuritySummary] = useState(null);
-  const [portalAuditError, setPortalAuditError] = useState(null);
-  const [securityAuditError, setSecurityAuditError] = useState(null);
-  const [securitySummaryError, setSecuritySummaryError] = useState(null);
-  const [trainingStatus, setTrainingStatus] = useState(null);
-  const [trainingStatusError, setTrainingStatusError] = useState(null);
+  const queryClient = useQueryClient();
   const [trainingImportMessage, setTrainingImportMessage] = useState('');
   const [selectedTrainingFiles, setSelectedTrainingFiles] = useState([]);
   const [trainingUploadMessage, setTrainingUploadMessage] = useState('');
@@ -53,79 +83,21 @@ export default function Dashboard() {
   const [auditView, setAuditView] = useState('portal');
   const [auditOutcomeFilter, setAuditOutcomeFilter] = useState('all');
   const [auditWindowMs, setAuditWindowMs] = useState(24 * 60 * 60 * 1000);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [handoffLoadingId, setHandoffLoadingId] = useState(null);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setPortalAuditError(null);
-    setSecurityAuditError(null);
-    setSecuritySummaryError(null);
-    setTrainingStatusError(null);
-    try {
-      const now = Date.now();
-      const fromTs = now - auditWindowMs;
-      const auditFilterParams = {
-        limit: 8,
-        from: fromTs,
-        to: now
-      };
-      if (auditOutcomeFilter !== 'all') {
-        auditFilterParams.outcome = auditOutcomeFilter;
-      }
+  const dashboardQueryKey = useMemo(
+    () => ['dashboard-bundle', auditOutcomeFilter, auditWindowMs],
+    [auditOutcomeFilter, auditWindowMs]
+  );
+  const { data: dashboardBundle, isLoading, error, isFetching } = useQuery({
+    queryKey: dashboardQueryKey,
+    queryFn: () => fetchDashboardBundle({ auditWindowMs, auditOutcomeFilter })
+  });
 
-      const [dashboardResult, portalAuditResult, securityAuditResult, securitySummaryResult, trainingStatusResult] = await Promise.allSettled([
-        axios.get(`${API}/api/dashboard`),
-        axios.get(`${API}/api/admin/portal-audit`, { params: auditFilterParams }),
-        axios.get(`${API}/api/admin/security-audit`, { params: auditFilterParams }),
-        axios.get(`${API}/api/admin/security-summary`),
-        axios.get(`${API}/api/admin/quote-training/status`)
-      ]);
-
-      if (dashboardResult.status === 'fulfilled') {
-        setData(dashboardResult.value.data.data);
-      } else {
-        console.error(dashboardResult.reason);
-        setError('Failed to load dashboard');
-      }
-
-      if (portalAuditResult.status === 'fulfilled') {
-        setPortalAuditEvents(portalAuditResult.value.data?.data || []);
-      } else {
-        console.error(portalAuditResult.reason);
-        setPortalAuditEvents([]);
-        setPortalAuditError('Portal audit unavailable');
-      }
-
-      if (securityAuditResult.status === 'fulfilled') {
-        setSecurityAuditEvents(securityAuditResult.value.data?.data || []);
-      } else {
-        console.error(securityAuditResult.reason);
-        setSecurityAuditEvents([]);
-        setSecurityAuditError('Security audit unavailable');
-      }
-
-      if (securitySummaryResult.status === 'fulfilled') {
-        setSecuritySummary(securitySummaryResult.value.data?.data || null);
-      } else {
-        console.error(securitySummaryResult.reason);
-        setSecuritySummary(null);
-        setSecuritySummaryError('Security summary unavailable');
-      }
-
-      if (trainingStatusResult.status === 'fulfilled') {
-        setTrainingStatus(trainingStatusResult.value.data?.data || null);
-      } else {
-        console.error(trainingStatusResult.reason);
-        setTrainingStatus(null);
-        setTrainingStatusError('Training status unavailable');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [auditOutcomeFilter, auditWindowMs]);
+  const refreshDashboard = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['dashboard-bundle'] });
+  }, [queryClient]);
 
   const toBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -174,7 +146,7 @@ export default function Dashboard() {
         setTrainingImportMessage(`Upload+Import complete: uploaded ${savedCount} file(s).`);
       }
       setSelectedTrainingFiles([]);
-      await loadDashboard();
+      await refreshDashboard();
     } catch (err) {
       console.error(err);
       setTrainingImportMessage(err.response?.data?.error || 'Upload+Import failed.');
@@ -183,31 +155,39 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
-
-  if (loading) return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
+  if (isLoading) return (
+    <div className="min-h-screen bg-osv-bg flex items-center justify-center">
       <div className="w-12 h-12 border-2 border-white/10 border-t-osv-accent rounded-full animate-spin"></div>
       <div className="ml-4 text-osv-muted uppercase tracking-[0.15em] text-xs font-heading">Loading Command Center...</div>
     </div>
   );
 
-  if (error || !data) return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
+  if (error || !dashboardBundle?.data) return (
+    <div className="min-h-screen bg-osv-bg flex items-center justify-center">
       <div className="bg-osv-panel/40 border border-osv-red/30 p-8 rounded-xl text-center">
         <p className="text-osv-red font-heading uppercase tracking-widest mb-2">Connection Error</p>
-        <p className="text-osv-muted text-sm">{error || 'No data returned'}</p>
+        <p className="text-osv-muted text-sm">{error?.message || 'No data returned'}</p>
       </div>
     </div>
   );
 
+  const {
+    data,
+    portalAuditEvents,
+    securityAuditEvents,
+    securitySummary,
+    portalAuditError,
+    securityAuditError,
+    securitySummaryError,
+    trainingStatus,
+    trainingStatusError
+  } = dashboardBundle;
   const { kpis, kpiTrends, quoteActivity, recentQuotes, activeJobsList, pendingApprovalsList, depositReadyList, alerts, modules, pipelineValue, quotedValue } = data;
 
   const handleCreateJobFromDeposit = async (quote) => {
     setHandoffLoadingId(quote.id);
     try {
+      setActionError(null);
       await axios.post(`${API}/api/jobs`, {
         title: quote.summary || `${quote.trade || 'Trade'} Job`,
         client_name: quote.client_name || 'Client',
@@ -217,10 +197,10 @@ export default function Dashboard() {
         quote_num: quote.quote_num
       });
       await axios.patch(`${API}/api/admin/quotes/${quote.id}`, { status: 'won' });
-      loadDashboard();
+      await refreshDashboard();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.error || 'Failed to create job from deposit-paid quote');
+      setActionError(err.response?.data?.error || 'Failed to create job from deposit-paid quote');
     }
     setHandoffLoadingId(null);
   };
@@ -234,7 +214,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-osv-text font-sans flex flex-col items-center">
+    <div className="min-h-screen bg-osv-bg text-osv-text font-sans flex flex-col items-center">
       <div className="w-full max-w-[1400px] px-6 py-8 md:px-10 md:py-12 flex flex-col gap-8 relative z-10">
 
         {/* HEADER */}
@@ -250,7 +230,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-6">
             <button className="text-osv-muted hover:text-osv-white transition-colors relative">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-              {alerts.length > 0 && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-osv-accent rounded-full border border-[#0A0A0F]"></div>}
+              {alerts.length > 0 && <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-osv-accent rounded-full border border-osv-bg"></div>}
             </button>
             <div className="w-8 h-8 rounded-full bg-osv-panel/80 border border-white/10 overflow-hidden shadow-inner cursor-pointer hover:border-white/30 transition-colors">
               <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100" alt="Profile" className="w-full h-full object-cover" />
@@ -264,7 +244,7 @@ export default function Dashboard() {
         {/* ROW 1: HERO & QUOTE SUMMARY */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           <div className="bg-osv-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-8 md:p-10 relative overflow-hidden flex flex-col justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4)] group">
-            <div className="absolute inset-0 bg-gradient-to-br from-osv-accent/5 to-transparent opacity-50 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-linear-to-br from-osv-accent/5 to-transparent opacity-50 pointer-events-none"></div>
             <div className="relative z-10 w-full lg:w-4/5">
               <h2 className="font-heading font-medium text-4xl md:text-5xl text-osv-white tracking-widest uppercase leading-[1.1] mb-4">
                 Create Intelligent Quote
@@ -273,13 +253,13 @@ export default function Dashboard() {
                 Generate accurate construction quotes from plans, scope, and project details in minutes.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/quotes/new" className="inline-flex items-center justify-center bg-osv-accent text-[#0A0A0F] font-bold h-12 px-8 rounded-lg uppercase tracking-[0.1em] text-sm hover:brightness-110 hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all duration-300 active:scale-[0.98]">
+                <Link to="/quotes/new" className="inline-flex items-center justify-center bg-osv-accent text-osv-bg font-bold h-12 px-8 rounded-lg uppercase tracking-widest text-sm hover:brightness-110 hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] transition-all duration-300 active:scale-[0.98]">
                   New Quote
                 </Link>
-                <button className="inline-flex items-center justify-center bg-osv-bg/50 border border-white/10 text-osv-white font-medium h-12 px-6 rounded-lg uppercase tracking-[0.1em] text-xs hover:bg-white/5 hover:border-white/20 transition-all shadow-inner">
+                <button className="inline-flex items-center justify-center bg-osv-bg/50 border border-white/10 text-osv-white font-medium h-12 px-6 rounded-lg uppercase tracking-widest text-xs hover:bg-white/5 hover:border-white/20 transition-all shadow-inner">
                   Upload Plans
                 </button>
-                <button className="inline-flex items-center justify-center bg-transparent border border-transparent text-osv-muted font-medium h-12 px-6 rounded-lg uppercase tracking-[0.1em] text-xs hover:text-osv-white transition-all">
+                <button className="inline-flex items-center justify-center bg-transparent border border-transparent text-osv-muted font-medium h-12 px-6 rounded-lg uppercase tracking-widest text-xs hover:text-osv-white transition-all">
                   Continue Draft
                 </button>
               </div>
@@ -319,7 +299,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
            {kpiStrip.map((kpi, idx) => (
              <div key={idx} className="bg-osv-panel/30 border border-white/5 rounded-xl p-4 flex flex-col justify-center hover:bg-osv-panel/50 hover:border-white/10 transition-colors cursor-default shadow-sm group">
-               <span className="text-[10px] uppercase tracking-[0.1em] text-osv-muted font-semibold mb-1 group-hover:text-osv-white transition-colors">{kpi.label}</span>
+               <span className="text-[10px] uppercase tracking-widest text-osv-muted font-semibold mb-1 group-hover:text-osv-white transition-colors">{kpi.label}</span>
                <span className="font-heading font-medium text-2xl text-osv-white">{kpi.val}</span>
                <span className={`text-[9px] uppercase tracking-wider mt-1 ${kpi.trendColor}`}>{kpi.trend}</span>
              </div>
@@ -391,7 +371,7 @@ export default function Dashboard() {
                 {recentQuotes.length === 0 ? (
                   <p className="text-osv-muted text-xs font-mono py-4 text-center">No quotes yet</p>
                 ) : recentQuotes.map(q => (
-                  <div key={q.quote_num} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] -mx-2 px-2 rounded transition-colors">
+                  <div key={q.quote_num} className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/2 -mx-2 px-2 rounded transition-colors">
                      <div className="flex flex-col">
                        <span className="text-sm font-medium text-osv-white truncate">{q.summary || q.trade || 'Untitled'}</span>
                        <span className="text-[10px] text-osv-muted font-mono">{q.quote_num}</span>
@@ -468,7 +448,7 @@ export default function Dashboard() {
                 ) : activeJobsList.map(j => {
                   const track = jobTrackInfo(j);
                   return (
-                    <div key={j.job_num} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/[0.02] -mx-2 px-2 rounded transition-colors">
+                    <div key={j.job_num} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/2 -mx-2 px-2 rounded transition-colors">
                        <div className="flex flex-col truncate pr-4">
                          <span className="text-sm font-medium text-osv-white truncate">{j.title}</span>
                          <span className="text-[10px] text-osv-muted uppercase tracking-wider mt-0.5">
@@ -510,10 +490,10 @@ export default function Dashboard() {
                   Security Audit Center
                 </h3>
                 <button
-                  onClick={loadDashboard}
+                  onClick={refreshDashboard}
                   className="text-[10px] uppercase tracking-widest text-osv-muted hover:text-osv-white transition-colors"
                 >
-                  Refresh
+                  {isFetching ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
 
@@ -651,10 +631,10 @@ export default function Dashboard() {
                   Quote Training Data
                 </h3>
                 <button
-                  onClick={loadDashboard}
+                  onClick={refreshDashboard}
                   className="text-[10px] uppercase tracking-widest text-osv-muted hover:text-osv-white transition-colors"
                 >
-                  Refresh
+                  {isFetching ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
 
@@ -722,6 +702,11 @@ export default function Dashboard() {
               <span className="text-[10px] text-osv-muted uppercase tracking-[0.15em] block mb-1">Quoted Value</span>
               <span className="font-heading text-lg text-osv-accent">${quotedValue.toLocaleString()}</span>
             </div>
+          </div>
+        )}
+        {actionError && (
+          <div className="bg-osv-red/5 border border-osv-red/30 p-4 rounded-xl text-center">
+            <p className="text-osv-red text-xs">{actionError}</p>
           </div>
         )}
 

@@ -50,6 +50,7 @@ export default function QuoteBuilder() {
 
   const compressImage = (file, maxDim = 1600, quality = 0.75) => new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       let { width, height } = img;
       if (width > maxDim || height > maxDim) {
@@ -61,14 +62,16 @@ export default function QuoteBuilder() {
       canvas.width = width;
       canvas.height = height;
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result);
       reader.readAsDataURL(file);
+      URL.revokeObjectURL(objectUrl);
     };
-    img.src = URL.createObjectURL(file);
+    img.src = objectUrl;
   });
 
   const addPhoto = useCallback((file) => {
@@ -665,7 +668,7 @@ export default function QuoteBuilder() {
                         alt={`Photo ${idx + 1}`}
                         className="w-20 h-20 object-cover rounded-lg border border-white/5"
                       />
-                      <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-osv-accent text-[#0A0A0F] text-[10px] font-bold flex items-center justify-center shadow-lg">
+            <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-osv-accent text-osv-bg text-[10px] font-bold flex items-center justify-center shadow-lg">
                         {idx + 1}
                       </span>
                     </div>
@@ -1319,7 +1322,7 @@ export default function QuoteBuilder() {
                     <button
                       onClick={handleIssueQuote}
                       disabled={loading || savedQuote.status === 'issued'}
-                      className="w-full h-12 bg-osv-accent text-[#0A0A0F] font-medium rounded-lg hover:brightness-110 transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-accent disabled:opacity-60"
+                      className="w-full h-12 bg-osv-accent text-osv-bg font-medium rounded-lg hover:brightness-110 transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-osv-accent disabled:opacity-60"
                     >
                       {savedQuote.status === 'issued' ? 'Quote Issued to Portal' : (loading ? 'Issuing Quote...' : 'Issue Quote to Client Portal')}
                     </button>
